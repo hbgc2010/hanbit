@@ -42,7 +42,9 @@ section[id]{scroll-margin-top:calc(var(--topH) + var(--abH) + 10px)}
 .brand{justify-self:center;display:flex;align-items:center}
 .logo{height:40px;width:auto;max-width:100%;display:block;object-fit:contain;transition:transform .25s ease}
 .top.scrolled .logo{transform:scale(.9)}
-:root[data-theme=dark] .logo:not(.night){background:#fff;padding:4px 10px}
+/* 야간 모드: 로고 색을 자동으로 반전 (남색 글씨는 밝게, 별 색깔은 그대로 유지). 야간 로고를 따로 올렸으면 적용 안 함 */
+.logo{transition:filter .3s ease,transform .25s ease}
+:root[data-theme=dark] .brand:not(.nologo) .logo:not(.night){filter:invert(1) hue-rotate(180deg)}
 /* 로고 이미지에 교회 이름이 들어 있으므로 글자 이름은 숨김 (로고가 없을 때만 표시) */
 .brand-text{display:flex;flex-direction:column;position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .brand.nologo{gap:10px}
