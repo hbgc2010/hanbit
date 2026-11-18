@@ -10,7 +10,9 @@
   var TABS = { settings: '설정', banners: '배너', dday: '디데이', apps: '앱링크' };
   var $ = function (id) { return document.getElementById(id); };
   var DAY = 86400000;
-  var DATA = null, ADMIN = false, PW = '';
+  var DATA = null, ADMIN = false, PW = '', PENDING = 0;
+  var MEMBER = { token: '', name: '' };   // 승인된 교인으로 로그인한 상태 (브라우저에 보관)
+  try { MEMBER.token = localStorage.getItem('memberToken') || ''; MEMBER.name = localStorage.getItem('memberName') || ''; localStorage.removeItem('portalCache'); } catch (e) { }
   var EMOJIS = ['⛪', '📖', '🙏', '🤝', '🙌', '📝', '📰', '💌', '💝', '🏢', '🎄', '🕯️', '🎉', '⛺', '📅', '🎵', '✝️', '👨‍👩‍👧', '📢', '🍚', '📸', '🎓', '❤️', '🌱'];
 
   /* ================= 작은 도구들 ================= */
@@ -55,6 +57,7 @@
   function byOrder(a, b) { return num(a['순서'], 999) - num(b['순서'], 999); }
   // 앱을 눌렀을 때 열리는 것: link(링크 주소) / image(이미지 파일) / pdf(PDF 파일)
   function appKind(a) { var k = (a['종류'] || '').trim(); return (k === 'image' || k === 'pdf') ? k : 'link'; }
+  function isLocked(a) { return a.locked === '1' || a.locked === 1 || a.locked === true; }
   function appUrl(a) { return appKind(a) === 'link' ? safeUrl(a['링크']) : safeUrl(a['파일']); }
   function driveId(u) { var m = (u || '').match(/drive\.google\.com\/(?:file\/d\/|(?:open|uc|thumbnail)\?[^#]*id=)([\w-]+)/); return m ? m[1] : ''; }
 
@@ -153,17 +156,45 @@
   }
 
   /* ================= 데이터 읽기 ================= */
+  function fetchPublic() {   // 누구나 받는 데이터 (교인 전용 내용은 서버가 빼고 보냄)
+    return fetch(API + (API.indexOf('?') < 0 ? '?' : '&') + 'action=data', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { if (!j.ok) throw new Error(j.error || '오류'); return j.data; });
+  }
   function fetchLive() {
     if (API) {
-      return fetch(API + (API.indexOf('?') < 0 ? '?' : '&') + 'action=data', { cache: 'no-store' })
-        .then(function (r) { return r.json(); })
-        .then(function (j) { if (!j.ok) throw new Error(j.error || '오류'); return j.data; });
+      if (MEMBER.token) {   // 로그인한 교인: 교인 전용 내용까지 받음
+        return mcall({ action: 'memberData', token: MEMBER.token })
+          .then(function (j) { if (j.name) MEMBER.name = j.name; saveMember(); return j.data; })
+          .catch(function (err) { if (err.expired) { memberClear(); toast('교인 로그인이 만료되었습니다. 다시 로그인해 주세요.', 'err'); return fetchPublic(); } throw err; });
+      }
+      return fetchPublic();
     }
     return Promise.all([fetchTab(TABS.settings), fetchTab(TABS.banners), fetchTab(TABS.dday), fetchTab(TABS.apps)])
       .then(function (r) { return { settings: r[0], banners: r[1], dday: r[2], apps: r[3] }; });
   }
-  function readCache() { try { return JSON.parse(localStorage.getItem('portalCache') || 'null'); } catch (e) { return null; } }
-  function writeCache(d) { try { localStorage.setItem('portalCache', JSON.stringify(d)); } catch (e) { } }
+  // 저장해 두는 내용은 '누구나 보는 내용'뿐입니다. (관리자·교인 전용 내용은 브라우저에 남기지 않음)
+  function readCache() { try { return JSON.parse(localStorage.getItem('portalCache2') || 'null'); } catch (e) { return null; } }
+  function writeCache(d) { if (ADMIN || MEMBER.token) return; try { localStorage.setItem('portalCache2', JSON.stringify(d)); } catch (e) { } }
+  function refreshData() { fetchLive().then(function (d) { DATA = d; writeCache(d); render(); }).catch(function () { }); }
+  // 로그아웃 직후, 서버 응답을 기다리는 동안에도 교인 전용·숨김 내용이 화면에 남지 않게 걸러 줌
+  function publicView(d) {
+    var c = JSON.parse(JSON.stringify(d || {})), vis = function (x) { return show(x['표시']); };
+    c.banners = (c.banners || []).filter(vis); c.dday = (c.dday || []).filter(vis);
+    c.apps = (c.apps || []).filter(vis).filter(function (a) { return (a['공개범위'] || '').trim() !== 'member-hidden'; }).map(function (a) {
+      if ((a['공개범위'] || '').trim() === 'member') { a['링크'] = ''; a['파일'] = ''; a['파일명'] = ''; a.locked = '1'; }
+      return a;
+    });
+    return c;
+  }
+  // 교인용 요청 (관리자 비밀번호와 무관)
+  function mcall(payload) {
+    return fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) })
+      .then(function (r) { return r.json(); }, function () { throw new Error('인터넷 연결을 확인해 주세요.'); })
+      .then(function (j) { if (!j.ok) { var e = new Error(j.error || '처리하지 못했습니다.'); e.expired = j.code === 'expired'; throw e; } return j; });
+  }
+  function saveMember() { try { localStorage.setItem('memberToken', MEMBER.token); localStorage.setItem('memberName', MEMBER.name); } catch (e) { } }
+  function memberClear() { MEMBER.token = ''; MEMBER.name = ''; try { localStorage.removeItem('memberToken'); localStorage.removeItem('memberName'); localStorage.removeItem('portalCache2'); } catch (e) { } }
 
   /* ================= 주간/야간 모드 ================= */
   var mq = matchMedia('(prefers-color-scheme: dark)');
@@ -215,6 +246,7 @@
     renderDday(DATA.dday || [], s);
     prepApps(DATA.apps || []);
     renderAdminChrome();
+    renderMemberNav();
   }
 
   function renderHeader(s) {
@@ -491,7 +523,7 @@
     return {};
   }
   function prepApps(list) {
-    APPS = list.filter(function (a) { return a['이름'] && (ADMIN || (show(a['표시']) && appUrl(a))); })
+    APPS = list.filter(function (a) { return a['이름'] && (ADMIN || (show(a['표시']) && (appUrl(a) || isLocked(a)))); })
       .map(function (a, i) { a._i = i; a._cat = a['카테고리'] || '기타'; return a; })
       .sort(function (a, b) { return byOrder(a, b) || a._i - b._i; });
     CATS = [];
@@ -544,10 +576,15 @@
       groups[c].forEach(function (a, idx) {
         var cell = el('div', 'cell' + (!show(a['표시']) ? ' hid' : ''));
         reveal(cell, 'app:' + (a.ID || a['이름']), idx % 3);
-        var kind = appKind(a), href = appUrl(a);
+        var kind = appKind(a), href = appUrl(a), locked = isLocked(a), vis = (a['공개범위'] || '').trim();
         var card = el('a', 'app'); if (href) card.href = href;
         styleCard(card, a);
-        if (kind === 'link') {
+        if (locked) {   // 교인 전용 앱: 비회원에게는 링크 없이 자물쇠만 보이고, 누르면 로그인 안내
+          card.classList.add('locked'); card.setAttribute('role', 'button'); card.tabIndex = 0;
+          var ask = function (e) { e.preventDefault(); openMemberLogin('교인 전용 앱입니다. 로그인해 주세요.'); };
+          card.addEventListener('click', ask);
+          card.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') ask(e); });
+        } else if (kind === 'link') {
           if (show(a['새창'] || 'Y')) { card.target = '_blank'; card.rel = 'noopener'; }
         } else {   // 이미지/PDF: 화면 안의 보기 창으로 열기 (Ctrl·Shift 클릭이나 길게 누르기는 브라우저 기본 동작)
           card.addEventListener('click', function (e) { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button) return; e.preventDefault(); openViewer(a); });
@@ -562,7 +599,9 @@
         if (a['설명']) tx.appendChild(el('small', null, a['설명']));
         card.appendChild(tx);
         card.appendChild(el('span', 'go', '›'));
-        if (kind !== 'link') card.appendChild(el('span', 'app-kind', kind === 'pdf' ? 'PDF' : '이미지'));
+        if (locked) card.appendChild(el('span', 'app-vis', '🔒 교인 전용'));
+        else if ((ADMIN || MEMBER.token) && vis) card.appendChild(el('span', 'app-vis', vis === 'member-hidden' ? '🔒 교인 전용 · 비회원에겐 숨김' : '🔒 교인 전용'));
+        if (kind !== 'link' && !locked) card.appendChild(el('span', 'app-kind', kind === 'pdf' ? 'PDF' : '이미지'));
         cell.appendChild(card);
         if (ADMIN) {
           if (!show(a['표시'])) cell.appendChild(el('span', 'badge', '숨김'));
@@ -642,16 +681,17 @@
   /* ---- 로그인/로그아웃 ---- */
   function login(pw) {
     PW = pw;
-    return call({ action: 'login' }).then(function () {
-      ADMIN = true;
+    return call({ action: 'login' }).then(function (j) {
+      ADMIN = true; PENDING = j.pending || 0;
       try { sessionStorage.setItem('adminPw', pw); } catch (e) { }
+      if (j.data) DATA = j.data;   // 관리자는 교인 전용 내용까지 모두 받음 (수정할 때 값이 비어 지워지는 일이 없도록)
       render();
     }).catch(function (e) { PW = ''; throw e; });
   }
   function logout(expired) {
-    ADMIN = false; PW = '';
-    try { sessionStorage.removeItem('adminPw'); } catch (e) { }
-    closeModal(); if (DATA) render();
+    ADMIN = false; PW = ''; PENDING = 0;
+    try { sessionStorage.removeItem('adminPw'); localStorage.removeItem('portalCache2'); } catch (e) { }
+    closeModal(); if (DATA) { DATA = publicView(DATA); render(); } refreshData();
     toast(expired ? '비밀번호가 달라 관리자 모드가 종료되었습니다.' : '관리자 모드를 종료했습니다.');
   }
   function openLogin() {
@@ -683,6 +723,7 @@
     var in2 = el('div', 'wrap adminbar-in');
     in2.appendChild(el('span', 'adminbar-t', '🔧 관리자 모드 — ✏️ 를 눌러 수정하고, ▲▼ 로 순서를 바꾸세요'));
     var r = el('span', 'adminbar-r');
+    r.appendChild(btn('👥 교인 관리' + (PENDING ? ' (' + PENDING + ')' : ''), 'btn sm light', openMemberManager));
     r.appendChild(btn('⚙️ 화면 설정', 'btn sm light', openSettingsForm));
     r.appendChild(btn('로그아웃', 'btn sm ghost-w', function () { logout(); }));
     in2.appendChild(r); bar.appendChild(in2);
@@ -978,8 +1019,9 @@
     function fail(msg) { errBox.textContent = msg; errBox.hidden = false; toast(msg, 'err'); errBox.scrollIntoView({ block: 'nearest' }); }
     fields.forEach(function (x) { form.appendChild(x.f.node); });
     if (o.note) form.appendChild(el('p', 'mf-note', o.note));
-    var save = el('button', 'btn', '저장'); save.type = 'submit'; save.setAttribute('form', form.id);
+    var save = el('button', 'btn', o.submitLabel || '저장'); save.type = 'submit'; save.setAttribute('form', form.id);
     var actions = [save];
+    if (o.extra) o.extra.forEach(function (b) { actions.unshift(b); });
     var del;
     if (o.onDelete) {
       del = btn('삭제', 'btn danger', function () {
@@ -990,7 +1032,7 @@
       actions.unshift(del);
     }
     actions.push(btn('취소', 'btn ghost', function () { closeModal(); if (o.after) o.after(); }));
-    function lock(on) { busy(on); save.disabled = on; if (del) del.disabled = on; save.textContent = on ? '저장 중…' : '저장'; }
+    function lock(on) { busy(on); save.disabled = on; if (del) del.disabled = on; save.textContent = on ? (o.busyLabel || '저장 중…') : (o.submitLabel || '저장'); }
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       errBox.hidden = true;
@@ -1007,7 +1049,7 @@
       }
       if (o.validate) { var msg = o.validate(vals); if (msg) { fail(msg); return; } }
       lock(true);
-      o.onSave(vals).then(function () { closeModal(); toast('저장되었습니다.'); if (o.after) o.after(); })
+      o.onSave(vals).then(function (res) { closeModal(); if (o.successMsg !== '') toast(o.successMsg || '저장되었습니다.'); if (o.onDone) o.onDone(res); if (o.after) o.after(); })
         .catch(function (err) { fail(err.message || '저장하지 못했습니다. 잠시 후 다시 시도해 주세요.'); lock(false); });
     });
     openModal(title, form, actions);
@@ -1022,6 +1064,11 @@
       { k: '이름', f: fText('앱 이름', a['이름'], { req: true, max: 40 }) },
       { k: '설명', f: fText('짧은 설명', a['설명'], { max: 80, ph: '예) 처음 오신 분 등록 양식' }) },
       { k: '__target', f: fTarget(a) },
+      { k: '공개범위', f: fSelect('누가 볼 수 있나요?', (a['공개범위'] || '').trim(), [
+        ['', '모두 (전체 공개)'],
+        ['member', '교인만 (비회원에게는 🔒 로 보이고, 누르면 로그인 안내)'],
+        ['member-hidden', '교인만 (비회원에게는 아예 보이지 않음)']
+      ], '교인 전용으로 하면 비회원에게는 링크·파일 주소가 서버에서 아예 전송되지 않습니다.') },
       { k: '아이콘', f: fImage('아이콘', a['아이콘'], { emojis: true, max: 256 }) },
       { k: '__style', f: fStyle(a) },
       { k: '표시', f: fCheck('화면에 보이기 (끄면 숨겨집니다)', isNew ? true : show(a['표시'])) },
@@ -1265,6 +1312,162 @@
   // 오프라인에서도 열리도록 서비스 워커 등록 (https 또는 localhost 에서만 동작)
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
     window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () { }); });
+  }
+
+  /* ================= 교인 가입 · 로그인 · 관리 ================= */
+  function fSelect(label, val, opts, hint) {
+    var w = el('label', 'mf'); w.appendChild(el('span', 'mf-l', label));
+    var sel = el('select');
+    opts.forEach(function (o) { var op = el('option', null, o[1]); op.value = o[0]; sel.appendChild(op); });
+    sel.value = val || ''; w.appendChild(sel);
+    if (hint) w.appendChild(el('small', 'mf-h', hint));
+    return { node: w, get: function () { return sel.value; } };
+  }
+  function setAttrs(f, attrs) { var i = f.node.querySelector('input'); Object.keys(attrs).forEach(function (k) { i.setAttribute(k, attrs[k]); }); return f; }
+  function phoneOk(v) { return /^01[016789]\d{7,8}$/.test(String(v || '').replace(/\D/g, '')); }
+
+  // 화면 맨 위 메뉴 아래의 작은 줄: 교인 로그인/가입 (로그인하면 이름·비밀번호 변경·로그아웃)
+  function renderMemberNav() {
+    var top = document.querySelector('.top'), row = $('memberRow');
+    if (!row) { row = el('div', 'member-row'); row.id = 'memberRow'; top.appendChild(row); }
+    row.textContent = '';
+    if (!API) { row.hidden = true; return; }
+    row.hidden = false;
+    var in2 = el('div', 'wrap member-in');
+    if (MEMBER.token) {
+      in2.appendChild(el('span', 'mn-name', '👤 ' + (MEMBER.name || '교인') + '님'));
+      in2.appendChild(btn('비밀번호 변경', 'mn-link', openMemberPassword));
+      in2.appendChild(btn('로그아웃', 'mn-link', memberLogout));
+    } else {
+      in2.appendChild(el('span', 'mn-hint', '교인이신가요?'));
+      in2.appendChild(btn('교인 로그인', 'mn-link', function () { openMemberLogin(); }));
+      in2.appendChild(btn('교인 가입', 'mn-link', openMemberRegister));
+    }
+    row.appendChild(in2);
+    layoutVars();
+  }
+  function memberLogout() {
+    memberClear();
+    if (DATA && !ADMIN) { DATA = publicView(DATA); render(); }
+    refreshData();
+    toast('로그아웃되었습니다.');
+  }
+
+  function openMemberLogin(note) {
+    var ph = setAttrs(fText('휴대폰 번호', '', { req: true, ph: '010-1234-5678', max: 13 }), { inputmode: 'tel', autocomplete: 'tel', autocapitalize: 'off' });
+    var pw = setAttrs(fText('비밀번호', '', { req: true, type: 'password', max: 40 }), { autocomplete: 'current-password' });
+    var reg = btn('교인 가입 신청', 'btn ghost', function () { closeModal(); openMemberRegister(); });
+    formModal('교인 로그인', [{ k: 'phone', f: ph }, { k: 'password', f: pw }], {
+      note: note || '교인으로 가입하고 교회의 승인을 받으면 교인 전용 앱을 볼 수 있습니다.',
+      submitLabel: '로그인', busyLabel: '확인 중…', successMsg: '', extra: [reg],
+      validate: function (v) { if (!phoneOk(v.phone)) return '휴대폰 번호를 정확히 입력해 주세요. (예: 010-1234-5678)'; },
+      onSave: function (v) {
+        return mcall({ action: 'memberLogin', phone: v.phone, password: v.password }).then(function (j) {
+          MEMBER.token = j.token; MEMBER.name = j.name; saveMember();
+          if (!ADMIN && j.data) { DATA = j.data; }
+          render(); return j;
+        });
+      },
+      onDone: function () { toast((MEMBER.name || '교인') + '님, 환영합니다.'); }
+    });
+  }
+
+  function openMemberRegister() {
+    var nm = fText('이름', '', { req: true, max: 20 });
+    var ph = setAttrs(fText('휴대폰 번호', '', { req: true, ph: '010-1234-5678', max: 13 }), { inputmode: 'tel', autocomplete: 'tel' });
+    var pw = setAttrs(fText('비밀번호 (6자 이상)', '', { req: true, type: 'password', max: 40 }), { autocomplete: 'new-password' });
+    var pw2 = setAttrs(fText('비밀번호 확인', '', { req: true, type: 'password', max: 40 }), { autocomplete: 'new-password' });
+    var memo = fText('교인 확인용 메모 (선택)', '', { max: 80, ph: '예) 송파교구, 김철수 집사 소개', hint: '교회에서 교인인지 확인할 때 참고합니다.' });
+    var agree = fCheck('개인정보 수집·이용에 동의합니다 (필수)', false);
+    var hp = el('input'); hp.type = 'text'; hp.tabIndex = -1; hp.autocomplete = 'off'; hp.setAttribute('aria-hidden', 'true'); hp.className = 'hp';   // 자동 가입 프로그램(봇) 차단용 숨은 칸
+    formModal('교인 가입 신청', [
+      { k: 'name', f: nm }, { k: 'phone', f: ph }, { k: 'password', f: pw }, { k: 'password2', f: pw2 }, { k: 'memo', f: memo },
+      { k: 'agree', f: agree }, { k: 'website', f: { node: hp, get: function () { return hp.value; } } }
+    ], {
+      note: '수집 항목: 이름, 휴대폰 번호, 비밀번호(암호화되어 저장), 확인용 메모. 교인 확인과 교인 전용 앱 제공에만 사용하며, 구글 드라이브의 비공개 파일에 보관됩니다. 삭제를 원하시면 교회로 요청해 주세요.',
+      submitLabel: '가입 신청', busyLabel: '신청 중…', successMsg: '',
+      validate: function (v) {
+        if (!phoneOk(v.phone)) return '휴대폰 번호를 정확히 입력해 주세요. (예: 010-1234-5678)';
+        if (v.password.length < 6) return '비밀번호는 6자 이상으로 정해 주세요.';
+        if (v.password !== v.password2) return '비밀번호 확인이 일치하지 않습니다.';
+        if (v.agree !== 'Y') return '개인정보 수집·이용에 동의해 주세요.';
+      },
+      onSave: function (v) { return mcall({ action: 'register', name: v.name, phone: v.phone, password: v.password, memo: v.memo, agree: true, website: v.website }); },
+      onDone: function () {
+        var b = el('div', 'inst');
+        b.appendChild(el('p', null, '✅ 가입 신청이 접수되었습니다.'));
+        b.appendChild(el('p', null, '교회에서 교인 여부를 확인한 뒤 승인해 드립니다. 승인되면 같은 휴대폰 번호와 비밀번호로 로그인하실 수 있습니다.'));
+        openModal('가입 신청 완료', b, [btn('확인', 'btn', closeModal)]);
+      }
+    });
+  }
+
+  function openMemberPassword() {
+    var o1 = setAttrs(fText('현재 비밀번호', '', { req: true, type: 'password', max: 40 }), { autocomplete: 'current-password' });
+    var n1 = setAttrs(fText('새 비밀번호 (6자 이상)', '', { req: true, type: 'password', max: 40 }), { autocomplete: 'new-password' });
+    var n2 = setAttrs(fText('새 비밀번호 확인', '', { req: true, type: 'password', max: 40 }), { autocomplete: 'new-password' });
+    formModal('비밀번호 변경', [{ k: 'old', f: o1 }, { k: 'new', f: n1 }, { k: 'new2', f: n2 }], {
+      submitLabel: '변경', busyLabel: '변경 중…', successMsg: '비밀번호가 변경되었습니다.',
+      validate: function (v) { if (v.new.length < 6) return '새 비밀번호는 6자 이상으로 정해 주세요.'; if (v.new !== v.new2) return '새 비밀번호 확인이 일치하지 않습니다.'; },
+      onSave: function (v) { return mcall({ action: 'memberPassword', token: MEMBER.token, old: v.old, new: v.new }).then(function (j) { MEMBER.token = j.token; saveMember(); return j; }); }
+    });
+  }
+
+  // ---- 관리자: 교인 승인·관리 ----
+  var STATUS_LABEL = { pending: '승인 대기', approved: '승인됨', rejected: '거절', blocked: '차단' };
+  function openMemberManager() {
+    var state = { list: null, filter: 'pending', err: '', temp: null };
+    var body = el('div', 'mm');
+    function load() {
+      call({ action: 'memberList' }).then(function (j) { state.list = j.list; PENDING = j.pending; state.err = ''; draw(); renderAdminChrome(); })
+        .catch(function (e) { state.err = e.message; draw(); });
+    }
+    function act(payload, okMsg) {
+      call(payload).then(function (j) {
+        state.list = j.list; PENDING = j.pending; if (j.temp) state.temp = { name: j.tempFor, pw: j.temp };
+        draw(); renderAdminChrome(); if (okMsg) toast(okMsg);
+      }).catch(function (e) { toast(e.message, 'err'); });
+    }
+    function count(st) { return (state.list || []).filter(function (m) { return st === 'all' || m.status === st || (st === 'closed' && (m.status === 'rejected' || m.status === 'blocked')); }).length; }
+    function draw() {
+      body.textContent = '';
+      if (state.err) { body.appendChild(el('p', 'm-err', state.err)); return; }
+      if (!state.list) { body.appendChild(el('p', 'empty', '불러오는 중…')); return; }
+      if (state.temp) {
+        var tb = el('div', 'mm-temp');
+        tb.appendChild(el('strong', null, state.temp.name + '님의 임시 비밀번호: '));
+        tb.appendChild(el('code', null, state.temp.pw));
+        tb.appendChild(el('small', null, '이 창을 닫으면 다시 볼 수 없습니다. 본인에게 전달하고, 로그인 후 [비밀번호 변경]에서 바꾸도록 안내해 주세요.'));
+        body.appendChild(tb);
+      }
+      var fl = el('div', 'mm-filter');
+      [['pending', '승인 대기'], ['approved', '승인됨'], ['closed', '거절·차단'], ['all', '전체']].forEach(function (f) {
+        var b = btn(f[1] + ' ' + count(f[0]), 'chip' + (state.filter === f[0] ? ' on' : ''), function () { state.filter = f[0]; draw(); });
+        fl.appendChild(b);
+      });
+      body.appendChild(fl);
+      var rows = state.list.filter(function (m) { return state.filter === 'all' || m.status === state.filter || (state.filter === 'closed' && (m.status === 'rejected' || m.status === 'blocked')); });
+      if (!rows.length) body.appendChild(el('p', 'empty', state.filter === 'pending' ? '승인을 기다리는 교인이 없습니다.' : '해당하는 교인이 없습니다.'));
+      rows.forEach(function (m) {
+        var r = el('div', 'mm-row st-' + m.status);
+        var info = el('div', 'mm-info');
+        var h = el('div', 'mm-name'); h.appendChild(el('strong', null, m.name)); h.appendChild(el('span', 'mm-st', STATUS_LABEL[m.status] || m.status)); info.appendChild(h);
+        info.appendChild(el('div', 'mm-sub', '📞 ' + m.phone + '  ·  신청 ' + (m.applied || '-') + (m.approved ? '  ·  승인 ' + m.approved : '')));
+        if (m.memo) info.appendChild(el('div', 'mm-sub', '💬 ' + m.memo));
+        if (m.adminMemo) info.appendChild(el('div', 'mm-sub mm-admin', '📝 ' + m.adminMemo));
+        r.appendChild(info);
+        var ac = el('div', 'mm-acts');
+        var setSt = function (st, msg) { return function () { act({ action: 'memberSet', id: m.id, status: st }, msg); }; };
+        if (m.status !== 'approved') ac.appendChild(btn('승인', 'btn sm', setSt('approved', m.name + '님을 승인했습니다.')));
+        if (m.status === 'pending') ac.appendChild(btn('거절', 'btn sm ghost', setSt('rejected', '거절했습니다.')));
+        if (m.status === 'approved') { ac.appendChild(btn('차단', 'btn sm ghost', function () { if (confirm(m.name + '님의 이용을 차단할까요? (로그인이 즉시 해제됩니다)')) act({ action: 'memberSet', id: m.id, status: 'blocked' }, '차단했습니다.'); })); ac.appendChild(btn('비밀번호 초기화', 'btn sm ghost', function () { if (confirm(m.name + '님의 비밀번호를 임시 비밀번호로 바꿀까요?')) act({ action: 'memberReset', id: m.id }); })); }
+        ac.appendChild(btn('메모', 'btn sm ghost', function () { var t = prompt('관리자 메모 (교인에게는 보이지 않습니다)', m.adminMemo || ''); if (t !== null) act({ action: 'memberSet', id: m.id, adminMemo: t }); }));
+        ac.appendChild(btn('삭제', 'btn sm danger', function () { if (confirm(m.name + '님의 가입 정보를 삭제할까요? 되돌릴 수 없습니다.')) act({ action: 'memberDelete', id: m.id }, '삭제했습니다.'); }));
+        r.appendChild(ac); body.appendChild(r);
+      });
+    }
+    openModal('교인 관리', body, [btn('닫기', 'btn', closeModal)], true);
+    draw(); load();
   }
 
   /* ================= 시작 ================= */

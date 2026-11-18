@@ -462,3 +462,31 @@ body.modal-open{overflow:hidden}
 .viewer-img.zoom{max-width:none;max-height:none;width:200%;cursor:zoom-out}
 .viewer-msg{color:#fff;padding:30px;text-align:center;margin:auto}
 @media (max-width:640px){.modal.viewer{height:94vh;max-width:100%}.seg button{font-size:13px;padding:10px 2px}}
+
+/* ================= 교인 로그인·가입·관리 ================= */
+.member-row{border-top:1px solid var(--line);background:var(--subtle)}
+.member-in{display:flex;align-items:center;justify-content:flex-end;gap:14px;min-height:30px;font-size:13px}
+.mn-hint{color:var(--muted)}
+.mn-name{font-weight:700;color:var(--primary)}
+.mn-link{background:none;border:0;padding:4px 0;font:inherit;font-size:13px;font-weight:700;color:var(--ink);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.mn-link:hover{color:var(--accent)}
+.hp{position:absolute!important;left:-9999px!important;width:1px;height:1px;opacity:0}
+.app.locked{cursor:pointer}
+.app.locked .app-ico,.app.locked .app-tx{opacity:.72}
+.app-vis{position:absolute;left:6px;bottom:6px;font-size:10px;font-weight:700;line-height:1.5;padding:0 6px;color:var(--ink2);border:1px solid var(--line);background:var(--bg)}
+.app.tinted .app-vis{color:inherit;border-color:currentColor;background:transparent}
+.mm{display:grid;gap:10px}
+.mm-filter{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+.mm-row{display:flex;gap:12px;justify-content:space-between;align-items:center;border:1px solid var(--line);padding:10px 12px;flex-wrap:wrap}
+.mm-row.st-pending{border-left:4px solid #e0a100;background:var(--subtle)}
+.mm-row.st-approved{border-left:4px solid #2e8b57}
+.mm-row.st-rejected,.mm-row.st-blocked{border-left:4px solid var(--danger);opacity:.85}
+.mm-info{min-width:0;flex:1 1 260px;display:grid;gap:2px}
+.mm-name{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.mm-st{font-size:11px;font-weight:700;padding:0 7px;border:1px solid var(--strong-line);color:var(--muted)}
+.mm-sub{font-size:13px;color:var(--ink2);word-break:break-all}
+.mm-admin{color:var(--primary)}
+.mm-acts{display:flex;gap:6px;flex-wrap:wrap}
+.mm-temp{border:2px solid #e0a100;background:#fff8e0;color:#3a2a00;padding:12px;display:grid;gap:6px}
+.mm-temp code{font-size:22px;font-weight:700;letter-spacing:.08em;background:#fff;border:1px solid #e0a100;padding:2px 10px;justify-self:start}
+@media (max-width:640px){.member-in{gap:10px;font-size:12.5px}.mn-link{font-size:12.5px}}
