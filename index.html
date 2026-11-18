@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>한빛은혜교회</title>
+<meta name="description" content="한빛은혜교회 앱 모음 · 교회 소식">
+<meta name="theme-color" content="#1f5e3b">
+<script>
+/* 깜빡임 방지: 화면이 그려지기 전에 주간/야간 모드를 먼저 정합니다 */
+(function(){try{var m=localStorage.getItem('theme')||'auto',d=false;
+if(m==='dark')d=true;else if(m==='auto'){var q=matchMedia('(prefers-color-scheme: dark)');
+var l=matchMedia('(prefers-color-scheme: light)');var h=new Date().getHours();
+d=q.matches?true:(l.matches?false:(h>=18||h<6));}
+document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();
+</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top-in">
+    <a class="brand" href="./" aria-label="처음으로">
+      <img id="logo" class="logo" alt="한빛은혜교회 로고" src="assets/logo.webp">
+      <span class="brand-text"><strong id="churchName">한빛은혜교회</strong><small id="tagline"></small></span>
+    </a>
+    <div class="theme" role="group" aria-label="화면 모드">
+      <button type="button" data-mode="auto" aria-label="자동" title="자동">🌗<span>자동</span></button>
+      <button type="button" data-mode="light" aria-label="주간 모드" title="주간">☀️<span>주간</span></button>
+      <button type="button" data-mode="dark" aria-label="야간 모드" title="야간">🌙<span>야간</span></button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- 배너(광고판) -->
+  <section class="banner-sec wrap" id="bannerSec" aria-label="교회 소식 배너" hidden>
+    <div class="banner" id="banner" tabindex="0">
+      <div class="track" id="track"></div>
+      <button class="nav prev" id="prev" aria-label="이전 배너">‹</button>
+      <button class="nav next" id="next" aria-label="다음 배너">›</button>
+      <div class="dots" id="dots"></div>
+    </div>
+  </section>
+
+  <!-- D-day -->
+  <section class="dday-sec wrap" id="ddaySec" aria-label="교회 일정 D-day" hidden>
+    <h2 class="sec-title"><span>📅</span> 교회 일정</h2>
+    <ul class="dday-list" id="ddayList"></ul>
+  </section>
+
+  <!-- 앱 모음 -->
+  <section class="apps-sec wrap" aria-label="교회 앱 모음">
+    <h2 class="sec-title"><span>🧩</span> 교회 앱 모아보기</h2>
+    <div class="tools">
+      <div class="chips" id="chips" role="tablist" aria-label="앱 카테고리"></div>
+      <input id="search" type="search" placeholder="앱 검색" aria-label="앱 검색">
+    </div>
+    <div id="apps"></div>
+    <p class="empty" id="appsEmpty" hidden>표시할 앱이 없습니다.</p>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p id="footText"></p>
+    <p class="small" id="status"></p>
+  </div>
+</footer>
+
+<script src="config.js"></script>
+<script src="data-sample.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
