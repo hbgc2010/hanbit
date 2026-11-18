@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>한빛은혜교회</title>
 <meta name="description" content="한빛은혜교회 앱 모음 · 교회 소식">
-<meta name="theme-color" content="#1f5e3b">
+<meta name="theme-color" content="#ffffff">
 <script>
 /* 깜빡임 방지: 화면이 그려지기 전에 주간/야간 모드를 먼저 정합니다 */
 (function(){try{var m=localStorage.getItem('theme')||'auto',d=false;
@@ -17,10 +17,13 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<a class="skip" href="#main">본문 바로가기</a>
 
+<!-- 흰 머리글: 가운데 로고 + 아래 한 줄 메뉴 -->
 <header class="top">
   <div class="wrap top-in">
-    <a class="brand" href="./" aria-label="처음으로">
+    <span class="top-l" id="logoTools"></span>
+    <a class="brand" href="./" aria-label="한빛은혜교회 처음으로">
       <img id="logo" class="logo" alt="한빛은혜교회 로고" src="assets/logo.webp">
       <span class="brand-text"><strong id="churchName">한빛은혜교회</strong><small id="tagline"></small></span>
     </a>
@@ -30,15 +33,22 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
       <button type="button" data-mode="dark" aria-label="야간 모드" title="야간">🌙<span>야간</span></button>
     </div>
   </div>
+  <nav class="gnb" aria-label="주메뉴">
+    <div class="wrap gnb-in">
+      <a href="#bannerSec">소식</a>
+      <a href="#ddaySec">교회 일정</a>
+      <a href="#appsSec">교회 앱</a>
+    </div>
+  </nav>
 </header>
 
 <!-- 관리자 모드 안내 띠 (관리자로 로그인했을 때만 보임) -->
 <div class="adminbar" id="adminBar" hidden></div>
 
-<main>
-  <!-- 배너(광고판) -->
-  <section class="banner-sec wrap" id="bannerSec" aria-label="교회 소식 배너" hidden>
-    <div class="sec-tools" id="bannerTools" hidden></div>
+<main id="main">
+  <!-- 배너: 화면 가득 -->
+  <section class="banner-sec" id="bannerSec" aria-label="교회 소식 배너" hidden>
+    <div class="wrap"><div class="sec-tools" id="bannerTools" hidden></div></div>
     <div class="banner" id="banner" tabindex="0">
       <div class="track" id="track"></div>
       <button class="nav prev" id="prev" aria-label="이전 배너">‹</button>
@@ -47,19 +57,21 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
     </div>
   </section>
 
-  <!-- D-day -->
-  <section class="dday-sec wrap" id="ddaySec" aria-label="교회 일정 D-day" hidden>
-    <div class="sec-head">
-      <h2 class="sec-title"><span>📅</span> 교회 일정</h2>
-      <div class="sec-tools" id="ddayTools" hidden></div>
+  <!-- 교회 일정(D-day): 어두운 띠 -->
+  <section class="dday-band" id="ddaySec" aria-label="교회 일정 D-day" hidden>
+    <div class="wrap">
+      <div class="sec-head">
+        <h2 class="sec-title">교회 일정</h2>
+        <div class="sec-tools" id="ddayTools" hidden></div>
+      </div>
+      <ul class="dday-list" id="ddayList"></ul>
     </div>
-    <ul class="dday-list" id="ddayList"></ul>
   </section>
 
-  <!-- 앱 모음 -->
-  <section class="apps-sec wrap" aria-label="교회 앱 모음">
+  <!-- 교회 앱 모음: 칸으로 나뉜 서비스 격자 -->
+  <section class="apps-sec wrap" id="appsSec" aria-label="교회 앱 모음">
     <div class="sec-head">
-      <h2 class="sec-title"><span>🧩</span> 교회 앱 모아보기</h2>
+      <h2 class="sec-title">교회 앱 모아보기</h2>
       <div class="sec-tools" id="appsTools" hidden></div>
     </div>
     <div class="tools">
@@ -72,9 +84,11 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 </main>
 
 <footer class="foot">
-  <div class="wrap">
-    <p id="footText"></p>
-    <p class="small" id="status"></p>
+  <div class="wrap foot-in">
+    <div>
+      <p id="footText"></p>
+      <p class="small" id="status"></p>
+    </div>
     <button type="button" class="adm-link" id="adminLink" hidden>🔒 관리자</button>
   </div>
 </footer>
