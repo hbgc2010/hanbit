@@ -23,7 +23,7 @@ var l=matchMedia('(prefers-color-scheme: light)');var h=new Date().getHours();
 d=q.matches?true:(l.matches?false:(h>=18||h<6));}
 document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20261118b">
 </head>
 <body>
 <a class="skip" href="#main">본문 바로가기</a>
@@ -110,8 +110,9 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="config.js"></script>
-<script src="data-sample.js"></script>
-<script src="app.js"></script>
+<!-- 파일 주소 끝의 ?v=... 는 '버전 표시'입니다. 카카오톡 같은 앱 안 브라우저가 예전 파일을 기억하지 않도록 업데이트할 때마다 바뀝니다. -->
+<script src="config.js?v=20261118b"></script>
+<script src="data-sample.js?v=20261118b"></script>
+<script src="app.js?v=20261118b"></script>
 </body>
 </html>

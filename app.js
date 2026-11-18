@@ -1088,8 +1088,14 @@
   var UA = navigator.userAgent || '';
   var IS_IOS = /iphone|ipad|ipod/i.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   var IS_ANDROID = /android/i.test(UA), IS_KAKAO = /KAKAOTALK/i.test(UA);
+  // 카카오톡·네이버·페이스북 등 '앱 안의 브라우저'에서는 홈 화면 설치가 안 됨
+  var IS_INAPP = IS_KAKAO || /NAVER\(inapp|FBAN|FBAV|Instagram|Line\/|DaumApps/i.test(UA);
+  var BROWSER_NAME = IS_IOS ? '사파리' : '크롬';
+  var BROWSER_WITH = IS_IOS ? '사파리로' : '크롬으로';   // '~로/으로' 받침 처리
+  // 카카오톡 안에서 지금 주소를 기본 브라우저(크롬/사파리)로 한 번에 열어 줌
+  function openExternal() { location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href.split('#')[0]); }
   function isStandalone() { return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true; }
-  function canInstallUI() { return !isStandalone() && (!!deferredInstall || IS_IOS || IS_ANDROID || IS_KAKAO); }
+  function canInstallUI() { return !isStandalone() && (!!deferredInstall || IS_IOS || IS_ANDROID || IS_INAPP); }
   function updateInstallUI() { var on = canInstallUI(); $('installBtn').hidden = !on; $('installLink').hidden = !on; }
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferredInstall = e; updateInstallUI(); });
   window.addEventListener('appinstalled', function () { deferredInstall = null; updateInstallUI(); toast('홈 화면에 설치되었습니다.'); });
@@ -1107,8 +1113,11 @@
   function showInstallHelp() {
     var steps, note = '';
     if (IS_KAKAO) {
-      steps = ['화면 오른쪽 아래(또는 위)의 ⋮ 또는 … 버튼을 누릅니다.', IS_IOS ? '"Safari로 열기"를 누릅니다.' : '"다른 브라우저로 열기"를 누르고 크롬을 고릅니다.', '열린 화면에서 [📲 앱 설치]를 다시 눌러 설치합니다.'];
-      note = '카카오톡 안에서 열면 설치할 수 없어요. ' + (IS_IOS ? '사파리로' : '크롬으로') + ' 열어 주세요.';
+      steps = ['아래 [' + BROWSER_WITH + ' 열기] 버튼을 누릅니다.', '열린 화면에서 [📲 앱 설치]를 다시 눌러 설치합니다.', '버튼이 안 먹으면 화면 오른쪽 아래(또는 위)의 ⋮ 또는 … 를 눌러 ' + (IS_IOS ? '"Safari로 열기"' : '"다른 브라우저로 열기"') + '를 누르세요.'];
+      note = '카카오톡 안에서 열면 설치할 수 없어요. ' + BROWSER_NAME + (IS_IOS ? '로' : '으로') + ' 열어야 합니다.';
+    } else if (IS_INAPP) {
+      steps = ['화면 오른쪽 위(또는 아래)의 ⋮ 또는 … 메뉴를 누릅니다.', '"다른 브라우저로 열기" 또는 "' + (IS_IOS ? 'Safari' : '크롬') + '에서 열기"를 누릅니다.', '열린 화면에서 [📲 앱 설치]를 다시 눌러 설치합니다.'];
+      note = '이 앱 안에서는 설치할 수 없어요. ' + BROWSER_NAME + (IS_IOS ? '로' : '으로') + ' 열어 주세요.';
     } else if (IS_IOS) {
       steps = ['사파리 아래쪽의 공유 버튼 ⬆️ (네모에서 화살표가 나오는 모양)을 누릅니다.', '목록을 위로 올려 "홈 화면에 추가"를 누릅니다.', '오른쪽 위의 "추가"를 누르면 홈 화면에 아이콘이 생깁니다.'];
       note = '아이폰은 사파리에서만 설치할 수 있습니다. (크롬·네이버 앱 안에서는 안 돼요)';
@@ -1122,11 +1131,24 @@
     body.appendChild(el('p', null, '홈 화면에 설치하면 앱처럼 바로 열 수 있어요. 이 아이콘이 만들어집니다.'));
     var ol = el('ol'); steps.forEach(function (t) { ol.appendChild(el('li', null, t)); }); body.appendChild(ol);
     if (note) body.appendChild(el('p', 'mf-note', note));
-    openModal('홈 화면에 설치하기', body, [btn('확인', 'btn', closeModal)]);
+    var acts = IS_KAKAO ? [btn(BROWSER_WITH + ' 열기', 'btn', openExternal), btn('닫기', 'btn ghost', closeModal)] : [btn('확인', 'btn', closeModal)];
+    openModal('홈 화면에 설치하기', body, acts);
+  }
+  // 앱 안의 브라우저(카카오톡 등)로 들어왔을 때, 화면 맨 위에 자동으로 안내를 보여 줌
+  function showInAppBar() {
+    if (!IS_INAPP || isStandalone()) return;
+    try { if (sessionStorage.getItem('inappClosed')) return; } catch (e) { }
+    var bar = el('div', 'inapp-bar'); bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', '설치 안내');
+    bar.appendChild(el('span', 'inapp-t', IS_KAKAO ? '📲 앱처럼 설치하려면 ' + BROWSER_NAME + (IS_IOS ? '로' : '으로') + ' 열어 주세요.' : '📲 이 앱 안에서는 설치할 수 없어요. 메뉴에서 "다른 브라우저로 열기"를 눌러 주세요.'));
+    if (IS_KAKAO) bar.appendChild(btn(BROWSER_WITH + ' 열기', 'btn sm light', openExternal));
+    var x = btn('✕', 'inapp-x', function () { bar.remove(); try { sessionStorage.setItem('inappClosed', '1'); } catch (e) { } });
+    x.setAttribute('aria-label', '닫기'); bar.appendChild(x);
+    document.body.insertBefore(bar, document.body.firstChild);
   }
   $('installBtn').addEventListener('click', installClick);
   $('installLink').addEventListener('click', installClick);
   updateInstallUI();
+  showInAppBar();
   // 오프라인에서도 열리도록 서비스 워커 등록 (https 또는 localhost 에서만 동작)
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
     window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () { }); });
