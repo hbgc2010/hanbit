@@ -53,6 +53,10 @@
   function num(v, d) { var n = parseFloat(v); return isNaN(n) ? d : n; }
   function isEmoji(s) { return !!s && !/^https?:|^\.?\.?\//.test(s) && s.length <= 12; }
   function byOrder(a, b) { return num(a['순서'], 999) - num(b['순서'], 999); }
+  // 앱을 눌렀을 때 열리는 것: link(링크 주소) / image(이미지 파일) / pdf(PDF 파일)
+  function appKind(a) { var k = (a['종류'] || '').trim(); return (k === 'image' || k === 'pdf') ? k : 'link'; }
+  function appUrl(a) { return appKind(a) === 'link' ? safeUrl(a['링크']) : safeUrl(a['파일']); }
+  function driveId(u) { var m = (u || '').match(/drive\.google\.com\/(?:file\/d\/|(?:open|uc|thumbnail)\?[^#]*id=)([\w-]+)/); return m ? m[1] : ''; }
 
   var toastTimer;
   function toast(text, kind) {
@@ -487,7 +491,7 @@
     return {};
   }
   function prepApps(list) {
-    APPS = list.filter(function (a) { return a['이름'] && (ADMIN || (show(a['표시']) && safeUrl(a['링크']))); })
+    APPS = list.filter(function (a) { return a['이름'] && (ADMIN || (show(a['표시']) && appUrl(a))); })
       .map(function (a, i) { a._i = i; a._cat = a['카테고리'] || '기타'; return a; })
       .sort(function (a, b) { return byOrder(a, b) || a._i - b._i; });
     CATS = [];
@@ -540,10 +544,14 @@
       groups[c].forEach(function (a, idx) {
         var cell = el('div', 'cell' + (!show(a['표시']) ? ' hid' : ''));
         reveal(cell, 'app:' + (a.ID || a['이름']), idx % 3);
-        var href = safeUrl(a['링크']);
+        var kind = appKind(a), href = appUrl(a);
         var card = el('a', 'app'); if (href) card.href = href;
         styleCard(card, a);
-        if (show(a['새창'] || 'Y')) { card.target = '_blank'; card.rel = 'noopener'; }
+        if (kind === 'link') {
+          if (show(a['새창'] || 'Y')) { card.target = '_blank'; card.rel = 'noopener'; }
+        } else {   // 이미지/PDF: 화면 안의 보기 창으로 열기 (Ctrl·Shift 클릭이나 길게 누르기는 브라우저 기본 동작)
+          card.addEventListener('click', function (e) { if (e.ctrlKey || e.metaKey || e.shiftKey || e.button) return; e.preventDefault(); openViewer(a); });
+        }
         var ic = el('span', 'app-ico');
         var raw = a['아이콘'] || '';
         if (raw && !isEmoji(raw) && imgUrl(raw)) { var im = el('img'); im.alt = ''; im.loading = 'lazy'; im.src = imgUrl(raw); ic.appendChild(im); }
@@ -554,6 +562,7 @@
         if (a['설명']) tx.appendChild(el('small', null, a['설명']));
         card.appendChild(tx);
         card.appendChild(el('span', 'go', '›'));
+        if (kind !== 'link') card.appendChild(el('span', 'app-kind', kind === 'pdf' ? 'PDF' : '이미지'));
         cell.appendChild(card);
         if (ADMIN) {
           if (!show(a['표시'])) cell.appendChild(el('span', 'badge', '숨김'));
@@ -868,6 +877,96 @@
   }
 
   // 입력 팝업 공통: fields = [{k, f}], 저장/삭제 처리
+  // PDF 올리기 (10MB 이하)
+  function uploadPdf(file) {
+    if (file.size > 10 * 1024 * 1024) return Promise.reject(new Error('PDF는 10MB 이하만 올릴 수 있습니다. (이 파일: ' + (file.size / 1048576).toFixed(1) + 'MB)'));
+    return new Promise(function (res, rej) {
+      var fr = new FileReader();
+      fr.onload = function () { res(String(fr.result).split(',')[1]); };
+      fr.onerror = function () { rej(new Error('파일을 읽을 수 없습니다.')); };
+      fr.readAsDataURL(file);
+    }).then(function (b64) { return call({ action: 'upload', name: file.name, mime: 'application/pdf', data: b64 }); })
+      .then(function (j) { return j.url; });
+  }
+
+  // 앱을 눌렀을 때 열릴 것 고르기: 링크 주소 / 이미지 파일 / PDF 파일
+  function fTarget(a) {
+    var cur = appKind(a);
+    var st = { type: cur, link: cur === 'link' ? (a['링크'] || '') : '', file: cur !== 'link' ? (a['파일'] || '') : '', fname: a['파일명'] || '' };
+    var w = el('div', 'mf'); w.appendChild(el('span', 'mf-l', '누르면 열리는 것 *'));
+    var seg = el('div', 'seg');
+    var linkP = el('div', 'fpanel'), fileP = el('div', 'fpanel');
+    // 링크 칸
+    var linkIn = el('input'); linkIn.type = 'text'; linkIn.value = st.link; linkIn.placeholder = 'https://...'; linkIn.setAttribute('aria-label', '연결할 주소');
+    linkP.appendChild(linkIn);
+    // 파일 칸
+    var nameEl = el('div', 'fname'), prev = el('img', 'fprev'); prev.alt = ''; prev.hidden = true;
+    var fileIn = el('input'); fileIn.type = 'file'; fileIn.hidden = true;
+    var upBtn = btn('📎 파일 올리기', 'btn sm', function () { fileIn.click(); });
+    var clr = btn('지우기', 'btn sm ghost', function () { st.file = ''; st.fname = ''; urlIn.value = ''; refresh(); });
+    var row = el('div', 'imgf-row'); row.appendChild(upBtn); row.appendChild(clr); row.appendChild(fileIn);
+    var urlIn = el('input'); urlIn.type = 'text'; urlIn.value = st.file; urlIn.placeholder = '또는 파일 주소 직접 입력'; urlIn.setAttribute('aria-label', '파일 주소');
+    urlIn.addEventListener('input', function () { st.file = urlIn.value.trim(); if (!st.file) st.fname = ''; refresh(); });
+    var hint = el('small', 'mf-h');
+    fileP.appendChild(nameEl); fileP.appendChild(row); fileP.appendChild(prev); fileP.appendChild(urlIn); fileP.appendChild(hint);
+    function refresh() {
+      nameEl.textContent = st.file ? '📎 ' + (st.fname || '올려진 파일 (주소 입력)') : '아직 올린 파일이 없습니다.';
+      var id = driveId(st.file), u = (st.type === 'image' && st.file) ? (id ? 'https://drive.google.com/thumbnail?id=' + id + '&sz=w400' : safeUrl(st.file)) : '';
+      prev.hidden = !u; if (u) prev.src = u;
+    }
+    function apply() {
+      linkP.hidden = st.type !== 'link'; fileP.hidden = st.type === 'link';
+      seg.querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b.dataset.t === st.type); b.setAttribute('aria-pressed', String(b.dataset.t === st.type)); });
+      fileIn.accept = st.type === 'pdf' ? 'application/pdf,.pdf' : 'image/*';
+      hint.textContent = st.type === 'pdf' ? 'PDF는 10MB 이하만 올릴 수 있습니다. 올린 파일은 구글 드라이브의 "한빛포털_이미지" 폴더에 저장됩니다.' : '사진은 자동으로 크기가 줄어서 올라갑니다. 올린 파일은 구글 드라이브의 "한빛포털_이미지" 폴더에 저장됩니다.';
+      refresh();
+    }
+    [['link', '🔗 링크 주소'], ['image', '🖼 이미지 파일'], ['pdf', '📄 PDF 파일']].forEach(function (t) {
+      var b = el('button', null, t[1]); b.type = 'button';
+      b.addEventListener('click', function () {
+        if (st.type !== 'link' && t[0] !== 'link' && st.type !== t[0]) { st.file = ''; st.fname = ''; urlIn.value = ''; }   // 이미지 ↔ PDF 로 바꾸면 올린 파일을 비움
+        st.type = t[0]; apply();
+      });
+      b.dataset.t = t[0]; seg.appendChild(b);
+    });
+    fileIn.addEventListener('change', function () {
+      var f = fileIn.files[0]; if (!f) return;
+      var isPdf = st.type === 'pdf';
+      if (isPdf ? !(f.type === 'application/pdf' || /\.pdf$/i.test(f.name)) : !/^image\//.test(f.type)) { toast(isPdf ? 'PDF 파일을 골라 주세요.' : '이미지 파일을 골라 주세요.', 'err'); fileIn.value = ''; return; }
+      upBtn.disabled = true; upBtn.textContent = '올리는 중…'; busy(true);
+      (isPdf ? uploadPdf(f) : uploadImage(f, 2000)).then(function (u) { st.file = u; st.fname = f.name; urlIn.value = u; refresh(); toast('파일이 올라갔습니다.'); })
+        .catch(function (e) { toast(e.message, 'err'); })
+        .then(function () { upBtn.disabled = false; upBtn.textContent = '📎 파일 올리기'; busy(false); fileIn.value = ''; });
+    });
+    w.appendChild(seg); w.appendChild(linkP); w.appendChild(fileP); apply();
+    return { node: w, label: '연결', get: function () { return { type: st.type, link: linkIn.value.trim(), file: st.file.trim(), fname: st.fname }; } };
+  }
+
+  // 이미지/PDF 보기 창
+  function openViewer(a) {
+    var kind = appKind(a), url = appUrl(a), id = driveId(url), title = a['이름'] || '파일';
+    var openUrl = id ? 'https://drive.google.com/file/d/' + id + '/view' : url;
+    var dlUrl = id ? 'https://drive.google.com/uc?export=download&id=' + id : url;
+    var same = false; try { same = new URL(url).origin === location.origin; } catch (e) { }
+    var body = el('div', 'viewer-body');
+    if (kind === 'image') {
+      var box = el('div', 'viewer-imgbox'), img = el('img', 'viewer-img'); img.alt = title;
+      img.src = id ? 'https://drive.google.com/thumbnail?id=' + id + '&sz=w2000' : url;
+      img.addEventListener('click', function () { img.classList.toggle('zoom'); });
+      img.onerror = function () { box.textContent = ''; box.appendChild(el('p', 'viewer-msg', '이미지를 불러올 수 없습니다. 아래 [새 창에서 열기]를 눌러 보세요.')); };
+      box.appendChild(img); body.appendChild(box);
+    } else if (id || same) {   // 구글 드라이브 또는 이 홈페이지 안의 PDF 는 창 안에서 보여 줌
+      var fr = el('iframe', 'viewer-frame'); fr.title = title; fr.src = id ? 'https://drive.google.com/file/d/' + id + '/preview' : url;
+      body.appendChild(fr);
+    } else { window.open(url, '_blank', 'noopener'); return; }   // 그 밖의 주소는 새 창으로
+    var acts = [
+      btn('새 창에서 열기', 'btn ghost', function () { window.open(openUrl, '_blank', 'noopener'); }),
+      btn('내려받기', 'btn ghost', function () { window.open(dlUrl, '_blank', 'noopener'); }),
+      btn('닫기', 'btn', closeModal)
+    ];
+    var m = openModal(title, body, acts, true); m.classList.add('viewer');
+  }
+
   var FORMSEQ = 0;
   function formModal(title, fields, o) {
     var form = el('form', 'mform');
@@ -922,13 +1021,27 @@
       { k: '카테고리', f: fCategory(a['카테고리']) },
       { k: '이름', f: fText('앱 이름', a['이름'], { req: true, max: 40 }) },
       { k: '설명', f: fText('짧은 설명', a['설명'], { max: 80, ph: '예) 처음 오신 분 등록 양식' }) },
-      { k: '링크', f: fText('연결할 주소(링크)', a['링크'], { req: true, kind: 'url', ph: 'https://...' }) },
+      { k: '__target', f: fTarget(a) },
       { k: '아이콘', f: fImage('아이콘', a['아이콘'], { emojis: true, max: 256 }) },
       { k: '__style', f: fStyle(a) },
       { k: '표시', f: fCheck('화면에 보이기 (끄면 숨겨집니다)', isNew ? true : show(a['표시'])) },
       { k: '새창', f: fCheck('새 창(탭)에서 열기', isNew ? true : show(a['새창'] || 'Y')) }
     ], {
+      validate: function (v) {
+        var t = v.__target;
+        if (t.type === 'link') {
+          if (!t.link) return '연결할 주소(링크)를 입력해 주세요.';
+          if (!/^https?:\/\//i.test(t.link) && /^[^\s\/:]+\.[^\s\/]+/.test(t.link)) t.link = 'https://' + t.link;
+          if (!/^https?:\/\/\S+$/i.test(t.link)) return '연결할 주소는 https:// 로 시작하는 인터넷 주소여야 합니다.';
+        } else {
+          if (!t.file) return (t.type === 'pdf' ? 'PDF' : '이미지') + ' 파일을 올리거나 파일 주소를 입력해 주세요.';
+          if (!/^(https?:\/\/\S+|assets\/\S+)$/i.test(t.file)) return '파일 주소는 https:// 또는 assets/ 로 시작해야 합니다.';
+        }
+      },
       onSave: function (v) {
+        var t = v.__target; delete v.__target;
+        var isLink = t.type === 'link';
+        v['종류'] = isLink ? '' : t.type; v['링크'] = isLink ? t.link : ''; v['파일'] = isLink ? '' : t.file; v['파일명'] = isLink ? '' : (t.fname || '');
         var st = v.__style; delete v.__style;
         v['배경색'] = st.bg; v['투명도'] = st.op; v['글자색'] = st.tc;
         if (a.ID) v.ID = a.ID;
