@@ -7,5 +7,5 @@
  * 비워두면(그대로 두면) 예시 내용이 화면에 나옵니다.
  */
 window.PORTAL_CONFIG = {
-  SHEET_ID: ""
+  SHEET_ID: "https://docs.google.com/spreadsheets/d/16N3dyIz-aFDR62Ck6AlBJ3D5ISLeRA1d/edit"
 };
