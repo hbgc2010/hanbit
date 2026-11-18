@@ -70,10 +70,14 @@
   /* ================= 스크롤 움직임 ================= */
   // 화면에 들어올 때 부드럽게 나타나기(한 번 본 항목은 다시 움직이지 않음), 머리글 그림자,
   // 배너 시차 효과, 읽기 진행 막대, 맨 위로 버튼. '움직임 줄이기' 설정을 쓰는 기기에서는 모두 꺼집니다.
-  var MOTION = !matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window;
-  var SEEN = {}, IO = null;
-  if (MOTION) {
-    document.documentElement.classList.add('motion');
+  // ── 효과 세기: 0 끔 / 1 약하게 / 2 보통 / 3 강하게 ── 관리자가 컴퓨터(PC)와 스마트폰을 따로 정합니다.
+  var REDUCED = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);   // 기기의 '애니메이션 끄기' 설정이 켜져 있는지
+  var IS_PC = !!(window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches);   // 마우스를 쓰는 컴퓨터인지
+  var FX = 2, MOTION = true, PAR = 0.12, STAG = 70, SEEN = {}, IO = null, FXPREVIEW = null, TILT = null;
+  function fxClamp(v) { var n = parseInt(v, 10); return String(isNaN(n) || n < 0 || n > 3 ? 2 : n); }
+  function fxForce(s) { var f = (s['움직임시스템무시'] || '').trim(); return f !== '' && show(f); }
+  function ensureIO() {
+    if (IO || !('IntersectionObserver' in window)) return;
     IO = new IntersectionObserver(function (es) {
       es.forEach(function (e) {
         // 화면 아래쪽에서 기다리는 항목은 그대로 두고, 이미 지나쳐 위로 올라간 항목은 바로 보이게 함
@@ -85,6 +89,31 @@
       });
     }, { threshold: 0.1, rootMargin: '0px 0px -5% 0px' });
   }
+  // 설정(시트)과 기기에 맞게 효과 세기를 정해 화면에 적용
+  function applyFx(s) {
+    var n = parseInt(fxClamp(IS_PC ? s['움직임PC'] : s['움직임모바일']), 10), force = fxForce(s);
+    if (REDUCED && !force) n = 0;                       // 기기가 '애니메이션 끄기' 상태이면 존중 (관리자가 무시하도록 정한 경우 제외)
+    if (!('IntersectionObserver' in window)) n = 0;
+    FX = n; MOTION = n > 0; PAR = [0, 0, 0.12, 0.26][n]; STAG = [0, 40, 70, 110][n];
+    var h = document.documentElement;
+    h.classList.remove('fx-0', 'fx-1', 'fx-2', 'fx-3'); h.classList.add('fx-' + n);
+    h.classList.toggle('motion', n > 0); h.classList.toggle('fx-force', REDUCED && force && n > 0);
+    if (n > 0) ensureIO();
+    untilt();
+    window.dispatchEvent(new Event('scroll'));
+  }
+  // 강하게(3) + 마우스: 카드가 마우스를 따라 살짝 기울어짐
+  function untilt() { if (TILT) { TILT.style.transform = ''; TILT.style.zIndex = ''; TILT = null; } }
+  document.addEventListener('pointermove', function (e) {
+    if (FX < 3 || !IS_PC || e.pointerType !== 'mouse' || document.body.classList.contains('modal-open')) { untilt(); return; }
+    var c = e.target.closest ? e.target.closest('.app:not(.pv), .dd-in') : null;
+    if (!c) { untilt(); return; }
+    if (TILT && TILT !== c) untilt();
+    var r = c.getBoundingClientRect(), px = (e.clientX - r.left) / r.width - 0.5, py = (e.clientY - r.top) / r.height - 0.5;
+    c.style.transform = 'perspective(700px) rotateX(' + (-py * 9).toFixed(2) + 'deg) rotateY(' + (px * 9).toFixed(2) + 'deg) scale(1.04)';
+    c.style.zIndex = '3'; TILT = c;
+  }, { passive: true });
+  document.addEventListener('mouseout', function (e) { if (!e.relatedTarget) untilt(); });
   // D-day 숫자가 나타날 때 0에서 올라가는 효과
   function countUp(root) {
     root.querySelectorAll('[data-n]').forEach(function (n) {
@@ -97,12 +126,13 @@
     });
   }
   function reveal(node, key, i) {
-    if (!MOTION || SEEN[key]) return node;
+    if (!MOTION || !IO || SEEN[key]) return node;
     node.classList.add('reveal'); node.setAttribute('data-rk', key);
-    if (i) node.style.setProperty('--d', Math.min(i, 8) * 70 + 'ms');
+    if (i) node.style.setProperty('--d', Math.min(i, 8) * STAG + 'ms');
     IO.observe(node);
     return node;
   }
+  applyFx({});   // 설정을 받기 전에는 기본값(보통)으로 시작
   (function scrollFx() {
     var hdr = document.querySelector('.top'), bar = el('div', 'progress');
     var up = el('button', 'totop', '↑'); up.type = 'button'; up.hidden = true; up.setAttribute('aria-label', '맨 위로');
@@ -115,7 +145,7 @@
       hdr.classList.toggle('scrolled', y > 8);
       bar.style.transform = 'scaleX(' + (max > 0 ? Math.min(1, y / max) : 0) + ')';
       up.hidden = y < 500;
-      if (MOTION) $('banner').style.setProperty('--py', Math.min(y, 600) * 0.12 + 'px');
+      $('banner').style.setProperty('--py', (MOTION ? Math.min(y, 600) * PAR : 0) + 'px');
     }
     window.addEventListener('scroll', function () { if (!tick) { tick = true; requestAnimationFrame(on); } }, { passive: true });
     on();
@@ -241,6 +271,7 @@
 
   function render() {
     var s = S();
+    applyFx(FXPREVIEW ? Object.assign({}, s, FXPREVIEW) : s);
     renderHeader(s);
     renderBanners(DATA.banners || [], s);
     renderDday(DATA.dday || [], s);
@@ -336,7 +367,7 @@
   }
   function restart() {
     clearInterval(timer);
-    if (slideN < 2 || ADMINBUSY || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (slideN < 2 || ADMINBUSY || !MOTION) return;
     timer = setInterval(function () { go(slideIdx + 1); }, sec * 1000);
   }
   var ADMINBUSY = false;   // 수정창이 열려 있는 동안은 배너 자동 넘김 정지
@@ -751,7 +782,7 @@
   $('adminLink').addEventListener('click', openLogin);
 
   /* ---- 팝업(모달) ---- */
-  var modalEl = null, modalKey = null;
+  var modalEl = null, modalKey = null, modalClose = null;
   function openModal(title, body, actions, wide) {
     closeModal();
     var bg = el('div', 'modal-bg');
@@ -774,6 +805,7 @@
     modalEl.remove(); modalEl = null; document.body.classList.remove('modal-open');
     document.removeEventListener('keydown', modalKey);
     ADMINBUSY = false; restart();
+    if (modalClose) { var cb = modalClose; modalClose = null; cb(); }
   }
   function busy(on) { if (modalEl) { if (on) modalEl.dataset.busy = '1'; else delete modalEl.dataset.busy; } }
 
@@ -915,6 +947,39 @@
     w.appendChild(all);
     update();
     return { node: w, get: function () { return { bg: st.bg, op: st.op >= 100 ? '' : String(st.op), tc: st.tc, applyCat: ci.checked }; } };
+  }
+
+  // 움직임(반응형 효과) 세기 고르기: 컴퓨터/스마트폰 따로, 고르면 바로 화면에 적용되어 미리 볼 수 있음
+  function fFx() {
+    var s = S(), cur = { pc: fxClamp(s['움직임PC']), mobile: fxClamp(s['움직임모바일']), force: fxForce(s) };
+    var LEVELS = [['0', '끔'], ['1', '약하게'], ['2', '보통'], ['3', '강하게']];
+    var DESC = ['끔 — 움직임 없이 바로 나타납니다.', '약하게 — 부드럽게 나타나기만 합니다.', '보통 — 스크롤하면 아래에서 올라오며 나타나고, 마우스를 올리면 아이콘이 살짝 움직입니다.', '강하게 — 더 크게 움직이고, 컴퓨터에서는 마우스를 따라 카드가 기울어집니다.'];
+    var w = el('div', 'mf'); w.appendChild(el('span', 'mf-l', '움직임(반응형 효과) 세기'));
+    w.appendChild(el('small', 'mf-h', '화면을 스크롤하거나 마우스를 올릴 때 요소가 움직이는 정도입니다. 고르면 바로 적용되니 뒤 화면을 스크롤해 보세요. [저장]을 눌러야 모든 사람에게 적용됩니다.'));
+    var segs = {}, desc = el('small', 'mf-h fx-desc');
+    function row(key, label) {
+      var r = el('div', 'fxrow'); r.appendChild(el('span', 'fx-l', label + ((IS_PC === (key === 'pc')) ? '  ← 지금 보고 있는 기기' : '')));
+      var seg = el('div', 'seg');
+      LEVELS.forEach(function (l) {
+        var b = el('button', null, l[1]); b.type = 'button'; b.dataset.v = l[0];
+        b.addEventListener('click', function () { cur[key] = l[0]; desc.textContent = DESC[+l[0]]; sync(); preview(); });
+        seg.appendChild(b);
+      });
+      r.appendChild(seg); w.appendChild(r); segs[key] = seg;
+    }
+    row('pc', '🖥 컴퓨터(PC)'); row('mobile', '📱 스마트폰·태블릿');
+    w.appendChild(desc);
+    var fl = el('label', 'mf check'), ci = el('input'); ci.type = 'checkbox'; ci.checked = cur.force;
+    ci.addEventListener('change', function () { cur.force = ci.checked; preview(); });
+    fl.appendChild(ci); fl.appendChild(el('span', null, '기기의 "애니메이션 끄기·움직임 줄이기" 설정이 켜져 있어도 효과를 보이기')); w.appendChild(fl);
+    if (REDUCED) w.appendChild(el('p', 'mf-note', '⚠️ 이 기기는 "애니메이션 효과 끄기"가 켜져 있습니다. 위 칸을 체크하지 않으면 이 기기에서는 효과가 보이지 않습니다. (윈도우: 설정 → 접근성 → 시각 효과 → 애니메이션 효과)'));
+    function sync() { ['pc', 'mobile'].forEach(function (k) { segs[k].querySelectorAll('button').forEach(function (b) { var on = b.dataset.v === cur[k]; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); }); }); }
+    function preview() {
+      FXPREVIEW = { '움직임PC': cur.pc, '움직임모바일': cur.mobile, '움직임시스템무시': cur.force ? 'Y' : 'N' };
+      SEEN = {}; render();
+    }
+    desc.textContent = DESC[+(IS_PC ? cur.pc : cur.mobile)]; sync();
+    return { node: w, get: function () { return { pc: cur.pc, mobile: cur.mobile, force: cur.force }; } };
   }
 
   // 입력 팝업 공통: fields = [{k, f}], 저장/삭제 처리
@@ -1228,8 +1293,17 @@
       { k: '하단문구', f: fText('맨 아래 문구', s['하단문구'], { max: 100 }) },
       { k: '배너전환초', f: fText('배너가 넘어가는 시간(초)', s['배너전환초'] || '5', { type: 'number' }) },
       { k: '지난일정표시', f: fCheck('지난 일정도 화면에 보이기 (D+3 처럼)', (s['지난일정표시'] || '').trim() !== '' && show(s['지난일정표시'])) },
+      { k: '__fx', f: fFx() },
       { k: '__logo', f: { node: el('p', 'mf-note', '로고 이미지는 왼쪽 위의 [🖼 로고] 버튼에서 바꿉니다.'), get: function () { return ''; } } }
-    ], { onSave: function (v) { delete v.__logo; return saveSettings(v); } });
+    ], {
+      onSave: function (v) {
+        delete v.__logo;
+        var fx = v.__fx; delete v.__fx;
+        v['움직임PC'] = fx.pc; v['움직임모바일'] = fx.mobile; v['움직임시스템무시'] = fx.force ? 'Y' : 'N';
+        return saveSettings(v);
+      }
+    });
+    modalClose = function () { FXPREVIEW = null; if (DATA) { SEEN = {}; render(); } };   // 저장하지 않고 닫으면 미리보기를 원래대로
   }
   // 로고 바꾸기: 주간(밝은 화면)용 / 야간(어두운 화면)용을 따로 올릴 수 있음
   function openLogoForm() {
