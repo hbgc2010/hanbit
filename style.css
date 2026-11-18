@@ -422,3 +422,15 @@ body.modal-open{overflow:hidden}
 
 /* 입력 팝업 안의 오류 안내 (사라지지 않고 계속 보임) */
 .m-err{border:1px solid var(--danger);color:var(--danger);background:var(--subtle);padding:10px 12px;font-size:14px;font-weight:700;line-height:1.5}
+
+/* ================= 홈 화면에 설치 버튼 · 안내 ================= */
+.top-l{gap:6px;flex-wrap:nowrap}
+#installBtn{min-height:30px;padding:0 10px;font-size:13px;white-space:nowrap}
+.foot-btns{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.inst p{margin:0 0 10px}
+.inst ol{margin:0 0 12px;padding-left:22px;line-height:1.8}
+.inst-ico{width:64px;height:64px;border:1px solid var(--line);display:block;margin:0 0 12px}
+@media (max-width:640px){
+  #installBtn{font-size:12px;padding:0 8px;min-height:28px}
+  .is-admin #installBtn{display:none}
+}

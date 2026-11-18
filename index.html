@@ -6,6 +6,15 @@
 <title>한빛은혜교회</title>
 <meta name="description" content="한빛은혜교회 앱 모음 · 교회 소식">
 <meta name="theme-color" content="#ffffff">
+<!-- 홈 화면에 설치(앱처럼 사용) -->
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="48x48" href="assets/icons/favicon-48.png">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="한빛은혜교회">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>
 /* 깜빡임 방지: 화면이 그려지기 전에 주간/야간 모드를 먼저 정합니다 */
 (function(){try{var m=localStorage.getItem('theme')||'auto',d=false;
@@ -22,7 +31,10 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <!-- 흰 머리글: 가운데 로고 + 아래 한 줄 메뉴 -->
 <header class="top">
   <div class="wrap top-in">
-    <span class="top-l" id="logoTools"></span>
+    <span class="top-l">
+      <button type="button" class="btn sm ghost" id="installBtn" hidden>📲 앱 설치</button>
+      <span id="logoTools"></span>
+    </span>
     <a class="brand" href="./" aria-label="한빛은혜교회 처음으로">
       <img id="logo" class="logo" alt="한빛은혜교회 로고" src="assets/logo.webp">
       <span class="brand-text"><strong id="churchName">한빛은혜교회</strong><small id="tagline"></small></span>
@@ -89,7 +101,10 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
       <p id="footText"></p>
       <p class="small" id="status"></p>
     </div>
-    <button type="button" class="adm-link" id="adminLink" hidden>🔒 관리자</button>
+    <span class="foot-btns">
+      <button type="button" class="adm-link" id="installLink" hidden>📲 홈 화면에 설치</button>
+      <button type="button" class="adm-link" id="adminLink" hidden>🔒 관리자</button>
+    </span>
   </div>
 </footer>
 

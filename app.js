@@ -1083,6 +1083,55 @@
     });
   }
 
+  /* ================= 홈 화면에 설치 (앱처럼 사용) ================= */
+  var deferredInstall = null;
+  var UA = navigator.userAgent || '';
+  var IS_IOS = /iphone|ipad|ipod/i.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var IS_ANDROID = /android/i.test(UA), IS_KAKAO = /KAKAOTALK/i.test(UA);
+  function isStandalone() { return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true; }
+  function canInstallUI() { return !isStandalone() && (!!deferredInstall || IS_IOS || IS_ANDROID || IS_KAKAO); }
+  function updateInstallUI() { var on = canInstallUI(); $('installBtn').hidden = !on; $('installLink').hidden = !on; }
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferredInstall = e; updateInstallUI(); });
+  window.addEventListener('appinstalled', function () { deferredInstall = null; updateInstallUI(); toast('홈 화면에 설치되었습니다.'); });
+  if (window.matchMedia) { var smq = matchMedia('(display-mode: standalone)'); if (smq.addEventListener) smq.addEventListener('change', updateInstallUI); }
+  function installClick() {
+    if (deferredInstall) {   // 크롬 등: 설치 창을 바로 띄움
+      var p = deferredInstall; deferredInstall = null;
+      p.prompt();
+      Promise.resolve(p.userChoice).then(function (c) { if (c && c.outcome !== 'accepted') toast('나중에 다시 설치할 수 있습니다.'); })
+        .catch(function () { }).then(updateInstallUI);
+      return;
+    }
+    showInstallHelp();   // 설치 창을 띄울 수 없는 곳(아이폰, 카카오톡 안 등): 방법을 안내
+  }
+  function showInstallHelp() {
+    var steps, note = '';
+    if (IS_KAKAO) {
+      steps = ['화면 오른쪽 아래(또는 위)의 ⋮ 또는 … 버튼을 누릅니다.', IS_IOS ? '"Safari로 열기"를 누릅니다.' : '"다른 브라우저로 열기"를 누르고 크롬을 고릅니다.', '열린 화면에서 [📲 앱 설치]를 다시 눌러 설치합니다.'];
+      note = '카카오톡 안에서 열면 설치할 수 없어요. ' + (IS_IOS ? '사파리로' : '크롬으로') + ' 열어 주세요.';
+    } else if (IS_IOS) {
+      steps = ['사파리 아래쪽의 공유 버튼 ⬆️ (네모에서 화살표가 나오는 모양)을 누릅니다.', '목록을 위로 올려 "홈 화면에 추가"를 누릅니다.', '오른쪽 위의 "추가"를 누르면 홈 화면에 아이콘이 생깁니다.'];
+      note = '아이폰은 사파리에서만 설치할 수 있습니다. (크롬·네이버 앱 안에서는 안 돼요)';
+    } else if (IS_ANDROID) {
+      steps = ['크롬 오른쪽 위의 ⋮ 메뉴를 누릅니다.', '"홈 화면에 추가" 또는 "앱 설치"를 누릅니다.', '"설치"를 누르면 홈 화면에 아이콘이 생깁니다.'];
+    } else {
+      steps = ['주소창 오른쪽의 설치 아이콘(⊕)을 누르거나, 브라우저 메뉴에서 "앱 설치"를 선택합니다.'];
+    }
+    var body = el('div', 'inst');
+    var ic = el('img', 'inst-ico'); ic.alt = '앱 아이콘'; ic.src = 'assets/icons/icon-192.png'; body.appendChild(ic);
+    body.appendChild(el('p', null, '홈 화면에 설치하면 앱처럼 바로 열 수 있어요. 이 아이콘이 만들어집니다.'));
+    var ol = el('ol'); steps.forEach(function (t) { ol.appendChild(el('li', null, t)); }); body.appendChild(ol);
+    if (note) body.appendChild(el('p', 'mf-note', note));
+    openModal('홈 화면에 설치하기', body, [btn('확인', 'btn', closeModal)]);
+  }
+  $('installBtn').addEventListener('click', installClick);
+  $('installLink').addEventListener('click', installClick);
+  updateInstallUI();
+  // 오프라인에서도 열리도록 서비스 워커 등록 (https 또는 localhost 에서만 동작)
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () { }); });
+  }
+
   /* ================= 시작 ================= */
   function setStatus(t) { $('status').textContent = t || ''; }
   // 고정 영역도 스크롤하면 부드럽게 나타나게
