@@ -419,3 +419,6 @@ body.modal-open{overflow:hidden}
   .cal-add{width:18px;height:18px;font-size:11px}
   .vm-card{grid-template-columns:84px 1fr}
 }
+
+/* 입력 팝업 안의 오류 안내 (사라지지 않고 계속 보임) */
+.m-err{border:1px solid var(--danger);color:var(--danger);background:var(--subtle);padding:10px 12px;font-size:14px;font-weight:700;line-height:1.5}

@@ -649,7 +649,8 @@
     var inp = el('input'); inp.type = 'password'; inp.autocomplete = 'current-password'; inp.placeholder = '관리자 비밀번호';
     var form = el('form', 'mform');
     var lab = el('label', 'mf'); lab.appendChild(el('span', 'mf-l', '비밀번호')); lab.appendChild(inp); form.appendChild(lab);
-    var ok = el('button', 'btn', '로그인'); ok.type = 'submit';
+    form.id = 'loginForm';
+    var ok = el('button', 'btn', '로그인'); ok.type = 'submit'; ok.setAttribute('form', 'loginForm');
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       if (!inp.value) return;
@@ -867,18 +868,25 @@
   }
 
   // 입력 팝업 공통: fields = [{k, f}], 저장/삭제 처리
+  var FORMSEQ = 0;
   function formModal(title, fields, o) {
     var form = el('form', 'mform');
+    // 저장 버튼은 팝업 아래쪽(입력 칸 묶음 밖)에 있으므로 form 속성으로 이 입력 칸들과 연결해야 눌렀을 때 저장됩니다
+    form.id = 'mform' + (++FORMSEQ);
+    // 입력이 잘못되었을 때 이유를 팝업 안에 계속 보여주는 칸
+    var errBox = el('div', 'm-err'); errBox.hidden = true; errBox.setAttribute('role', 'alert');
+    form.appendChild(errBox);
+    function fail(msg) { errBox.textContent = msg; errBox.hidden = false; toast(msg, 'err'); errBox.scrollIntoView({ block: 'nearest' }); }
     fields.forEach(function (x) { form.appendChild(x.f.node); });
     if (o.note) form.appendChild(el('p', 'mf-note', o.note));
-    var save = el('button', 'btn', '저장'); save.type = 'submit';
+    var save = el('button', 'btn', '저장'); save.type = 'submit'; save.setAttribute('form', form.id);
     var actions = [save];
     var del;
     if (o.onDelete) {
       del = btn('삭제', 'btn danger', function () {
         if (!confirm('정말 삭제할까요? 되돌릴 수 없습니다.')) return;
         lock(true); o.onDelete().then(function () { closeModal(); toast('삭제되었습니다.'); if (o.after) o.after(); })
-          .catch(function (e) { toast(e.message, 'err'); lock(false); });
+          .catch(function (e) { fail(e.message); lock(false); });
       });
       actions.unshift(del);
     }
@@ -886,17 +894,22 @@
     function lock(on) { busy(on); save.disabled = on; if (del) del.disabled = on; save.textContent = on ? '저장 중…' : '저장'; }
     form.addEventListener('submit', function (e) {
       e.preventDefault();
+      errBox.hidden = true;
       var vals = {};
       for (var i = 0; i < fields.length; i++) {
         var x = fields[i], v = x.f.get();
-        if (x.f.req && !v) { toast('"' + x.f.label + '"을(를) 입력해 주세요.', 'err'); return; }
-        if (x.f.kind === 'url' && v && !/^https?:\/\/\S+$/i.test(v)) { toast('"' + x.f.label + '"은 http:// 또는 https:// 로 시작하는 주소여야 합니다.', 'err'); return; }
+        if (x.f.req && !v) { fail('"' + x.f.label + '"을(를) 입력해 주세요.'); return; }
+        if (x.f.kind === 'url' && v) {
+          // 주소 앞에 https:// 를 빼먹었으면 자동으로 붙여 줍니다 (예: cafe.naver.com/hanbit)
+          if (!/^https?:\/\//i.test(v) && /^[^\s\/:]+\.[^\s\/]+/.test(v)) v = 'https://' + v;
+          if (!/^https?:\/\/\S+$/i.test(v)) { fail('"' + x.f.label + '"은 https:// 로 시작하는 인터넷 주소여야 합니다.'); return; }
+        }
         vals[x.k] = v;
       }
-      if (o.validate) { var msg = o.validate(vals); if (msg) { toast(msg, 'err'); return; } }
+      if (o.validate) { var msg = o.validate(vals); if (msg) { fail(msg); return; } }
       lock(true);
       o.onSave(vals).then(function () { closeModal(); toast('저장되었습니다.'); if (o.after) o.after(); })
-        .catch(function (err) { toast(err.message, 'err'); lock(false); });
+        .catch(function (err) { fail(err.message || '저장하지 못했습니다. 잠시 후 다시 시도해 주세요.'); lock(false); });
     });
     openModal(title, form, actions);
     var first = form.querySelector('input:not([type=hidden]):not([type=file]),select'); if (first) setTimeout(function () { first.focus(); }, 30);
