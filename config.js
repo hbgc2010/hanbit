@@ -10,6 +10,6 @@
  * 둘 다 비워두면 예시 내용이 화면에 나옵니다.
  */
 window.PORTAL_CONFIG = {
-  SCRIPT_URL: "",
+  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbz5NLihiS3AiODper9vLz5h8zMe8lMpC_CnKYPoa1kuehY8aWAtKoWkP6HHCmNQXsfM/exec",
   SHEET_ID: ""
 };
