@@ -23,35 +23,37 @@ var l=matchMedia('(prefers-color-scheme: light)');var h=new Date().getHours();
 d=q.matches?true:(l.matches?false:(h>=18||h<6));}
 document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261118e">
+<link rel="stylesheet" href="style.css?v=20261118f">
 </head>
 <body>
 <a class="skip" href="#main">본문 바로가기</a>
 
-<!-- 흰 머리글: 가운데 로고 + 아래 한 줄 메뉴 -->
+<!-- 머리글: 로고 왼쪽 · 메뉴 가운데 · 도구 오른쪽 (모바일에서는 아래 탭바가 메뉴 역할) -->
 <header class="top">
   <div class="wrap top-in">
-    <span class="top-l">
-      <button type="button" class="btn sm ghost" id="installBtn" hidden>📲 앱 설치</button>
-      <span id="logoTools"></span>
-    </span>
     <a class="brand" href="./" aria-label="한빛은혜교회 처음으로">
       <img id="logo" class="logo" alt="한빛은혜교회 로고" src="assets/logo.webp">
       <span class="brand-text"><strong id="churchName">한빛은혜교회</strong><small id="tagline"></small></span>
     </a>
-    <div class="theme" role="group" aria-label="화면 모드">
-      <button type="button" data-mode="auto" aria-label="자동" title="자동">🌗<span>자동</span></button>
-      <button type="button" data-mode="light" aria-label="주간 모드" title="주간">☀️<span>주간</span></button>
-      <button type="button" data-mode="dark" aria-label="야간 모드" title="야간">🌙<span>야간</span></button>
+    <nav class="gnb" aria-label="주메뉴">
+      <div class="gnb-in">
+        <a href="#bannerSec">소식</a>
+        <a href="#ddaySec">교회 일정</a>
+        <a href="#appsSec">교회 앱</a>
+      </div>
+    </nav>
+    <div class="top-r">
+      <span class="top-l">
+        <button type="button" class="btn sm ghost" id="installBtn" hidden>📲 앱 설치</button>
+        <span id="logoTools"></span>
+      </span>
+      <div class="theme" role="group" aria-label="화면 모드">
+        <button type="button" data-mode="auto" aria-label="자동" title="자동"><span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg></span><span>자동</span></button>
+        <button type="button" data-mode="light" aria-label="주간 모드" title="주간"><span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="4"/><path class="a" d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.3 5.3 7 7M17 17l1.7 1.7M5.3 18.7 7 17M17 7l1.7-1.7"/></svg></span><span>주간</span></button>
+        <button type="button" data-mode="dark" aria-label="야간 모드" title="야간"><span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M20 14.6A8 8 0 0 1 9.4 4 8 8 0 1 0 20 14.6z"/></svg></span><span>야간</span></button>
+      </div>
     </div>
   </div>
-  <nav class="gnb" aria-label="주메뉴">
-    <div class="wrap gnb-in">
-      <a href="#bannerSec">소식</a>
-      <a href="#ddaySec">교회 일정</a>
-      <a href="#appsSec">교회 앱</a>
-    </div>
-  </nav>
 </header>
 
 <!-- 관리자 모드 안내 띠 (관리자로 로그인했을 때만 보임) -->
@@ -69,21 +71,21 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
     </div>
   </section>
 
-  <!-- 교회 일정(D-day): 어두운 띠 -->
+  <!-- 교회 일정(D-day): 짙은 남색 띠 -->
   <section class="dday-band" id="ddaySec" aria-label="교회 일정 D-day" hidden>
     <div class="wrap">
       <div class="sec-head">
-        <h2 class="sec-title">교회 일정</h2>
+        <div class="sec-ttl"><span class="eyebrow">SCHEDULE</span><h2 class="sec-title">교회 일정</h2></div>
         <div class="sec-tools" id="ddayTools" hidden></div>
       </div>
       <ul class="dday-list" id="ddayList"></ul>
     </div>
   </section>
 
-  <!-- 교회 앱 모음: 칸으로 나뉜 서비스 격자 -->
+  <!-- 교회 앱 모음: 원형 아이콘 -->
   <section class="apps-sec wrap" id="appsSec" aria-label="교회 앱 모음">
     <div class="sec-head">
-      <h2 class="sec-title">교회 앱 모아보기</h2>
+      <div class="sec-ttl"><span class="eyebrow">CHURCH APPS</span><h2 class="sec-title">교회 앱 모아보기</h2></div>
       <div class="sec-tools" id="appsTools" hidden></div>
     </div>
     <div class="tools">
@@ -108,11 +110,19 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   </div>
 </footer>
 
+<!-- 모바일 하단 탭바 -->
+<nav class="tabbar" aria-label="하단 메뉴">
+  <a href="#main" data-tab="home"><span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M4 11.5 12 4l8 7.5V20H4z"/><path class="a" d="M10 20v-5h4v5"/></svg></span><span>홈</span></a>
+  <a href="#ddaySec" data-tab="dday"><span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="4" y="5.5" width="16" height="14.5" rx="1"/><path d="M4 10h16M8 3.5v4M16 3.5v4"/><path class="a" d="M8 14h3"/></svg></span><span>일정</span></a>
+  <a href="#appsSec" data-tab="apps"><span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="4" y="4" width="7" height="7"/><rect class="a" x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg></span><span>앱</span></a>
+  <button type="button" id="tabMember" hidden><span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="8" r="4"/><path class="a" d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg></span><span id="tabMemberLabel">교인</span></button>
+</nav>
+
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
 <!-- 파일 주소 끝의 ?v=... 는 '버전 표시'입니다. 카카오톡 같은 앱 안 브라우저가 예전 파일을 기억하지 않도록 업데이트할 때마다 바뀝니다. -->
-<script src="config.js?v=20261118e"></script>
-<script src="data-sample.js?v=20261118e"></script>
-<script src="app.js?v=20261118e"></script>
+<script src="config.js?v=20261118f"></script>
+<script src="data-sample.js?v=20261118f"></script>
+<script src="app.js?v=20261118f"></script>
 </body>
 </html>

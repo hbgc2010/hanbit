@@ -67,6 +67,99 @@
     clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, kind === 'err' ? 5000 : 2500);
   }
 
+  /* ================= 아이콘: 이모지를 가는 선(outline) 아이콘으로 ================= */
+  // 24×24 선 아이콘(굵기 1.6, 끝이 둥근 선). class="a" 부분은 포인트 색(파랑)으로 칠해집니다.
+  // 화면에 나오는 이모지(관리자가 고른 아이콘 포함) 중 아래 목록에 있는 것은 자동으로 이 아이콘으로 바뀌고,
+  // 목록에 없는 이모지는 그대로 보입니다. (저장되는 값은 바뀌지 않습니다)
+  var ICONS = {
+    church: '<path class="a" d="M12 2.5v3.5M10.2 4.2h3.6"/><path d="M12 6 5 10.2V21h14V10.2z"/><path d="M10 21v-4.5a2 2 0 0 1 4 0V21"/><path d="M2.5 21h19"/>',
+    book: '<path d="M12 6.8C10.2 5.4 7.2 4.9 3.5 5.3v12.9c3.7-.4 6.7.1 8.5 1.6 1.8-1.5 4.8-2 8.5-1.6V5.3c-3.7-.4-6.7.1-8.5 1.5z"/><path class="a" d="M12 6.8v12.9"/>',
+    pray: '<path d="M12 4c-.8 1.3-3.6 4.2-3.6 7.8V18l3.6 2.6"/><path d="M12 4c.8 1.3 3.6 4.2 3.6 7.8V18L12 20.6"/><path class="a" d="M12 4v16.6"/>',
+    users: '<circle cx="9" cy="8" r="3"/><path d="M3.5 19v-1.2a4.3 4.3 0 0 1 4.3-4.3h2.4a4.3 4.3 0 0 1 4.3 4.3V19"/><circle class="a" cx="17" cy="9" r="2.4"/><path class="a" d="M17.5 13.6a3.8 3.8 0 0 1 3.5 3.8V19"/>',
+    raise: '<circle cx="12" cy="6.5" r="2.3"/><path d="M12 9v6M9 20l3-5 3 5"/><path class="a" d="M6 3.5 8.6 11M18 3.5 15.4 11"/>',
+    memo: '<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path class="a" d="M9 12.5h6M9 16.5h4"/>',
+    paper: '<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path class="a" d="M12 10.5v6M9.5 12.7h5"/>',
+    mail: '<rect x="3" y="5.5" width="18" height="13" rx="1"/><path class="a" d="m3.5 7 8.5 6.2L20.5 7"/>',
+    hearthand: '<path class="a" d="M12 10.2s-3.4-2-3.4-4.6A2 2 0 0 1 12 4.7a2 2 0 0 1 3.4.9c0 2.6-3.4 4.6-3.4 4.6z"/><path d="M3 15.5h3.2l3.8 1.6h4a1.5 1.5 0 0 0 0-3H11"/><path d="m10 17.1 5.2-.6L21 13.4"/><path d="M3 13.5v7h3.2"/>',
+    heart: '<path d="M12 20.2S4.5 15.7 4.5 10A4.2 4.2 0 0 1 12 7.6 4.2 4.2 0 0 1 19.5 10c0 5.7-7.5 10.2-7.5 10.2z"/>',
+    building: '<path d="M5 21V4h9v17"/><path d="M14 9h5v12"/><path class="a" d="M8 8h3M8 12h3M8 16h3"/><path d="M3 21h18"/>',
+    tree: '<path d="M12 3 17 10h-3l4 6H6l4-6H7z"/><path class="a" d="M12 16v5"/>',
+    candle: '<path class="a" d="M12 2.8c1.6 1.4 2.1 3 0 4.6-2.1-1.6-1.6-3.2 0-4.6z"/><path d="M9 10.5h6V21H9z"/><path d="M12 7.4v3.1"/>',
+    party: '<path d="m4 20 4.2-11.5L15.5 16z"/><path class="a" d="m13 5 1.2 1.6M18 4v2.2M20.5 9.5h-2.3M13.8 9.8l1.2-1"/>',
+    tent: '<path d="M12 4 3 20h18z"/><path class="a" d="M9 20l3-5 3 5"/>',
+    calendar: '<rect x="4" y="5.5" width="16" height="14.5" rx="1"/><path d="M4 10h16M8 3.5v4M16 3.5v4"/><path class="a" d="M8 14h3"/>',
+    music: '<path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle class="a" cx="16.5" cy="16" r="2.5"/>',
+    cross: '<path class="a" d="M12 3v18M6.5 8.5h11"/>',
+    family: '<circle cx="8" cy="7.5" r="2.4"/><circle cx="16" cy="7.5" r="2.4"/><circle class="a" cx="12" cy="14.2" r="1.9"/><path d="M3.5 19v-1a3.8 3.8 0 0 1 3.8-3.8M20.5 19v-1a3.8 3.8 0 0 0-3.8-3.8"/><path class="a" d="M9.2 20.5v-1.2a2.8 2.8 0 0 1 5.6 0v1.2"/>',
+    megaphone: '<path d="M4 10v4h3l8 4V6L7 10z"/><path class="a" d="M18 9a4 4 0 0 1 0 6"/>',
+    bowl: '<path d="M4 12h16a8 8 0 0 1-16 0z"/><path class="a" d="M9 8.5c0-1.4 1-2 1-3.5M14 8.5c0-1.4 1-2 1-3.5"/>',
+    camera: '<path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle class="a" cx="12" cy="13.2" r="3.4"/>',
+    grad: '<path d="m2 9 10-5 10 5-10 5z"/><path d="M6 11.5V16c0 1.5 3 3 6 3s6-1.5 6-3v-4.5"/><path class="a" d="M22 9v6"/>',
+    sprout: '<path d="M12 21v-9"/><path class="a" d="M12 12C12 8 9 6 5 6c0 4 2 6 7 6z"/><path d="M12 14c0-3 2-5 6-5 0 3-1.5 5-6 5z"/>',
+    link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path class="a" d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    lock: '<rect x="5.5" y="10.5" width="13" height="10" rx="1.2"/><path class="a" d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/>',
+    pin: '<path d="M9 3h6l-1 6 3 3H7l3-3z"/><path class="a" d="M12 12v9"/>',
+    install: '<rect x="7" y="2.5" width="10" height="19" rx="1.8"/><path class="a" d="M12 7v7M9 11.5l3 3 3-3"/>',
+    image: '<rect x="4" y="5" width="16" height="14" rx="1"/><path d="m4 16 5-5 4 4 3-3 4 4"/><circle class="a" cx="9" cy="9.3" r="1.1"/>',
+    file: '<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path class="a" d="M9 13h6M9 17h6"/>',
+    clip: '<path d="m20 11-8 8a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8"/>',
+    pencil: '<path d="m4 20 1-4L16 5l3 3L8 19z"/><path class="a" d="m14 7 3 3"/>',
+    gear: '<circle class="a" cx="12" cy="12" r="3"/><path d="M19.4 13a7.7 7.7 0 0 0 0-2l2-1.5-2-3.5-2.3.9a7.5 7.5 0 0 0-1.7-1L15 3.5h-4l-.4 2.4a7.5 7.5 0 0 0-1.7 1l-2.3-.9-2 3.5L4.6 11a7.7 7.7 0 0 0 0 2l-2 1.5 2 3.5 2.3-.9c.5.4 1.1.7 1.7 1l.4 2.4h4l.4-2.4c.6-.3 1.2-.6 1.7-1l2.3.9 2-3.5z"/>',
+    layout: '<rect x="4" y="4" width="7" height="7"/><rect class="a" x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/>',
+    wrench: '<path d="M20.5 7a5 5 0 0 1-6.6 4.6L6.5 19a2.1 2.1 0 0 1-3-3l7.4-7.4A5 5 0 0 1 17 3l-3 3 .6 3.4L18 10z"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path class="a" d="M4.5 21a7.5 7.5 0 0 1 15 0"/>',
+    phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/>',
+    chat: '<path d="M4 5.5h16v11H9.5L4 20.5z"/>',
+    check: '<circle cx="12" cy="12" r="9"/><path class="a" d="m8 12.5 3 3 5-6"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path class="a" d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.3 5.3 7 7M17 17l1.7 1.7M5.3 18.7 7 17M17 7l1.7-1.7"/>',
+    moon: '<path d="M20 14.6A8 8 0 0 1 9.4 4 8 8 0 1 0 20 14.6z"/>',
+    auto: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/>'
+  };
+  // 바꿀 이모지 목록 (변이 선택자 U+FE0F 는 있든 없든 같게 취급)
+  var EMOJI_ICON = {
+    '👨‍👩‍👧': 'family', '⛪': 'church', '📖': 'book', '🙏': 'pray', '🤝': 'users', '🙌': 'raise', '📝': 'memo', '📰': 'paper', '💌': 'mail',
+    '💝': 'hearthand', '🏢': 'building', '🎄': 'tree', '🕯': 'candle', '🎉': 'party', '⛺': 'tent', '📅': 'calendar', '🎵': 'music',
+    '✝': 'cross', '📢': 'megaphone', '🍚': 'bowl', '📸': 'camera', '📷': 'camera', '🎓': 'grad', '❤': 'heart', '🌱': 'sprout',
+    '🔗': 'link', '🔒': 'lock', '📌': 'pin', '📲': 'install', '🖼': 'image', '📄': 'file', '📎': 'clip', '✏': 'pencil', '⚙': 'gear',
+    '👥': 'users', '🧩': 'layout', '🔧': 'wrench', '👤': 'user', '📞': 'phone', '💬': 'chat', '✅': 'check', '☀': 'sun', '🌙': 'moon', '🌗': 'auto'
+  };
+  var ICON_RE = new RegExp('(' + Object.keys(EMOJI_ICON).sort(function (a, b) { return b.length - a.length; })
+    .map(function (k) { return k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|') + ')\\uFE0F?', 'g');
+  // 사용자가 쓴 글(앱 이름·카테고리 이름 등)은 건드리지 않고, 화면의 도구·표시·아이콘 영역만 바꿉니다.
+  var ICON_SCOPE = '.top, .adminbar, .member-row, .foot, .tabbar, .modal, .toast, .sec-tools, .app-ico, .dd-ico, .app-vis, .app-kind, .cell-tools, .badge, .inapp-bar, .totop, .mv';
+  function iconEl(name) {
+    var sp = document.createElement('span');
+    sp.className = 'ic ic-' + name; sp.setAttribute('aria-hidden', 'true');
+    sp.innerHTML = '<svg viewBox="0 0 24 24" focusable="false">' + ICONS[name] + '</svg>';
+    return sp;
+  }
+  function iconify(root) {
+    if (!root) return;
+    if (root.nodeType === 3) root = root.parentNode;
+    if (!root || root.nodeType !== 1) return;
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), nodes = [], n;
+    while ((n = w.nextNode())) { ICON_RE.lastIndex = 0; if (ICON_RE.test(n.nodeValue)) nodes.push(n); }
+    nodes.forEach(function (t) {
+      var p = t.parentElement;
+      if (!p || !t.parentNode || !p.closest(ICON_SCOPE) || p.closest('script,style,textarea,input,.noicon')) return;
+      var txt = t.nodeValue, frag = document.createDocumentFragment(), last = 0, m;
+      ICON_RE.lastIndex = 0;
+      while ((m = ICON_RE.exec(txt))) {
+        if (m.index > last) frag.appendChild(document.createTextNode(txt.slice(last, m.index)));
+        var nm = EMOJI_ICON[m[1]];
+        frag.appendChild(nm ? iconEl(nm) : document.createTextNode(m[0]));
+        last = m.index + m[0].length;
+      }
+      if (last < txt.length) frag.appendChild(document.createTextNode(txt.slice(last)));
+      t.parentNode.replaceChild(frag, t);
+    });
+  }
+  iconify(document.body);
+  if (window.MutationObserver) {
+    new MutationObserver(function (ms) { ms.forEach(function (m) { m.addedNodes.forEach(function (x) { iconify(x); }); }); })
+      .observe(document.body, { childList: true, subtree: true });
+  }
+
   /* ================= 스크롤 움직임 ================= */
   // 화면에 들어올 때 부드럽게 나타나기(한 번 본 항목은 다시 움직이지 않음), 머리글 그림자,
   // 배너 시차 효과, 읽기 진행 막대, 맨 위로 버튼. '움직임 줄이기' 설정을 쓰는 기기에서는 모두 꺼집니다.
@@ -242,7 +335,7 @@
       b.setAttribute('aria-pressed', String(b.dataset.mode === mode));
     });
     var meta = document.querySelector('meta[name=theme-color]');
-    if (meta) meta.content = dark ? '#0d1424' : '#ffffff';
+    if (meta) meta.content = dark ? '#0f1823' : '#ffffff';
     // 주간/야간에 따라 달라지는 이미지(로고, 야간 배너 사진)를 바꿔 보여줌
     if (DATA && DATA.settings) {
       renderHeader(S());
@@ -278,6 +371,7 @@
     prepApps(DATA.apps || []);
     renderAdminChrome();
     renderMemberNav();
+    renderTabbar();
   }
 
   function renderHeader(s) {
@@ -1543,6 +1637,28 @@
     openModal('교인 관리', body, [btn('닫기', 'btn', closeModal)], true);
     draw(); load();
   }
+
+  // 모바일 하단 탭바: 홈 · 일정 · 앱 · 교인 (기존 로그인/메뉴 기능을 그대로 불러 씁니다)
+  function renderTabbar() {
+    var b = $('tabMember'), lab = $('tabMemberLabel');
+    if (!b) return;
+    b.hidden = !API;
+    if (lab) lab.textContent = MEMBER.token ? '내 정보' : '교인';
+  }
+  function openMemberMenu() {
+    var b = el('div', 'inst');
+    b.appendChild(el('p', null, (MEMBER.name || '교인') + '님으로 로그인되어 있습니다.'));
+    openModal('내 정보', b, [
+      btn('비밀번호 변경', 'btn ghost', function () { closeModal(); openMemberPassword(); }),
+      btn('로그아웃', 'btn ghost', function () { closeModal(); memberLogout(); }),
+      btn('닫기', 'btn', closeModal)
+    ]);
+  }
+  if ($('tabMember')) $('tabMember').addEventListener('click', function () { if (MEMBER.token) openMemberMenu(); else openMemberLogin(); });
+  (function () {
+    var home = document.querySelector('.tabbar [data-tab=home]');
+    if (home) home.addEventListener('click', function (e) { e.preventDefault(); window.scrollTo({ top: 0, behavior: MOTION ? 'smooth' : 'auto' }); });
+  })();
 
   /* ================= 시작 ================= */
   function setStatus(t) { $('status').textContent = t || ''; }
